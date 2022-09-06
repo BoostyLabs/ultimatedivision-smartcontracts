@@ -1,0 +1,25 @@
+{
+"external_url": "https://google.com",
+"image": "https://nft-test-bucker.s3.eu-central-1.amazonaws.com/images/1-back-1.png",
+"name": "Some name 3",
+"description": "Some description 3",
+"attributes": [
+{
+"trait_type": "Set",
+"value": "Athletes"
+},
+{
+"trait_type": "Rarity",
+"value": "Common"
+},
+{
+"display_type": "date",
+"trait_type": "birthday",
+"value": 1629816400
+},
+{
+"trait_type": "Max Supply",
+"value": "1"
+}
+]
+}

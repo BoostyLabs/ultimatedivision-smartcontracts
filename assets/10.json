@@ -1,0 +1,25 @@
+{
+"external_url": "https://google.com",
+"image": "https://nft-test-bucker.s3.eu-central-1.amazonaws.com/images/4-beard-2.png",
+"name": "Some name 10",
+"description": "Some description 10",
+"attributes": [
+{
+"trait_type": "Set",
+"value": "Athletes"
+},
+{
+"trait_type": "Rarity",
+"value": "Uncommon"
+},
+{
+"display_type": "date",
+"trait_type": "birthday",
+"value": 1629816400
+},
+{
+"trait_type": "Max Supply",
+"value": "1"
+}
+]
+}
