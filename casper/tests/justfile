@@ -1,0 +1,3 @@
+test:
+    just -f ../justfile build
+    cargo test --release

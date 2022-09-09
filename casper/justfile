@@ -1,0 +1,8 @@
+test:
+    just -f tests/justfile test
+
+build:
+    just -f erc20/justfile build
+    mkdir -p contracts
+    mv erc20/udtoken.wasm contracts
+
