@@ -1,0 +1,3 @@
+[submodule "casper/erc20/erc20"]
+	path = casper/erc20/erc20
+	url = git@github.com:BoostyLabs/ultimatedivision-smartcontracts-casper.git
