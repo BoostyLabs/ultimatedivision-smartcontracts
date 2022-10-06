@@ -26,21 +26,11 @@ fn valid_signature() {
     )
     .unwrap();
     let signature = "fd111c49caf6960cd6e92c274af15d20d09d70cfd1f9b9126d9f0d3b183140883ca9aafebc3a27581b78f323dcf5b5381c1725dcc69839ce78c364b245ab068f1b".to_string();
-    assert_eq!(test_nft_signature(account, contract, 6, signature), true);
-}
-
-#[test]
-fn wrong_token_id() {
-    let account = Key::from_formatted_str(
-        "account-hash-9060c0820b5156b1620c8e3344d17f9fad5108f5dc2672f2308439e84363c88e",
-    )
-    .unwrap();
-    let contract = Key::from_formatted_str(
-        "hash-e8a213277d9c4ef1b9b6b3a0fcf0dac1a0a42dd009fd30ae899df5f9f1b88833",
-    )
-    .unwrap();
-    let signature = "fd111c49caf6960cd6e92c274af15d20d09d70cfd1f9b9126d9f0d3b183140883ca9aafebc3a27581b78f323dcf5b5381c1725dcc69839ce78c364b245ab068f1b".to_string();
-    assert_eq!(test_nft_signature(account, contract, 4, signature), false);
+    assert_eq!(
+        test_nft_signature(account, contract, 6, signature.clone()),
+        true
+    );
+    assert_eq!(test_nft_signature(account, contract, 4, signature), false); // Wrong token id
 }
 
 #[test]
