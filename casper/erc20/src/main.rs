@@ -14,7 +14,13 @@ use casper_erc20::{
     },
     Address, ERC20,
 };
-use casper_types::{CLValue, Key, U256};
+use casper_types::{contracts::NamedKeys, CLValue, Key, U256};
+use verifier::Verifier as _Verifier;
+
+#[derive(Default)]
+struct Verifier {}
+
+impl verifier::Verifier for Verifier {}
 
 #[no_mangle]
 pub extern "C" fn name() {
@@ -86,11 +92,16 @@ pub extern "C" fn transfer_from() {
 #[no_mangle]
 pub extern "C" fn claim() {
     let amount: U256 = runtime::get_named_arg(CLAIM_VALUE_RUNTIME_ARG_NAME);
-    let nonce: U256 = runtime::get_named_arg(NONCE_RUNTIME_ARG_NAME);
+    let nonce: u64 = runtime::get_named_arg(NONCE_RUNTIME_ARG_NAME);
     let signature: String = runtime::get_named_arg(SIGNATURE_RUNTIME_ARG_NAME);
-    ERC20::default()
-        .claim(amount, nonce, signature)
+
+    let (_, contract_hash) = casper_erc20::detail::current_contract();
+    let caller = casper_erc20::detail::get_immediate_caller_address().unwrap_or_revert();
+
+    Verifier::default()
+        .verify_token_and_nonce(signature, amount, nonce, contract_hash, caller.as_bytes())
         .unwrap_or_revert();
+    ERC20::default().claim(amount, nonce).unwrap_or_revert();
 }
 
 #[no_mangle]
@@ -126,12 +137,14 @@ pub extern "C" fn burn() {
 #[no_mangle]
 fn call() {
     let key: String = runtime::get_named_arg("key");
+    let mut named_keys = NamedKeys::new();
+    verifier::add_key(&mut named_keys, key);
     ERC20::install(
         "test".to_string(),
         "test".to_string(),
         10,
         U256::zero(),
-        key,
+        named_keys,
     )
     .unwrap_or_revert();
 }

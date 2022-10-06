@@ -1,8 +1,7 @@
-test:
-    just -f tests/justfile test
-
 build:
     just -f erc20/justfile build
+    just -f ud-nft/justfile build
     mkdir -p contracts
     mv erc20/udtoken.wasm contracts
+    mv ud-nft/ud-nft.wasm contracts
 

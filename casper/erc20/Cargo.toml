@@ -14,8 +14,4 @@ strip = true
 casper-contract = { version = "1.3.2", features = ["no-std-helpers"] }
 casper-types = "1.3.2"
 casper-erc20 = { path = "erc20/erc20" }
-
-
-[dev-dependencies]
-casper-engine-test-support = { version = "=2.2.0", features = ["test-support"] }
-casper-execution-engine =" 2.0"
+verifier = { path = "../verifier", features = ["contract"] }
