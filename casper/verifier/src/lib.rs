@@ -122,8 +122,10 @@ impl VerifyKey {
         contract: ContractHash,
         user: &[u8],
     ) -> Option<()> {
-        let hex_token_string = format!("{:x}", &token);
-
+        let mut hex_token_string = format!("{:x}", &token);
+        if hex_token_string.len() % 2 == 1 {
+            hex_token_string.insert_str(0, "0");
+        }
         let mut bytes = vec![];
         bytes.extend_from_slice(user);
         bytes.extend_from_slice(contract.as_bytes());
