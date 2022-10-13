@@ -99,6 +99,38 @@ fn token_valid_signature() {
 }
 
 #[test]
+fn token_contract_test_signature() {
+    let account = Key::from_formatted_str(
+        "account-hash-9060c0820b5156b1620c8e3344d17f9fad5108f5dc2672f2308439e84363c88e",
+    )
+    .unwrap();
+    let contract = Key::from_formatted_str(
+        "hash-5aed0843516b06e4cbf56b1085c4af37035f2c9c1f18d7b0ffd7bbe96f91a3e0",
+    )
+    .unwrap();
+    let amount = U256::from_dec_str("5000").unwrap();
+    let signature = "a3f92029dae8b7a1fd682784995bd2fd3a395fe408c4eef6cccc358e7981b728625a6bb0a3bb2d91c4355ee7054bf9a2eef3aa8b31d63275eee02202d77a146a1b".to_string();
+    assert_eq!(
+        test_token_signature(account, contract, 0, amount, signature.clone()),
+        true
+    );
+    assert_eq!(
+        test_token_signature(account, contract, 5, amount, signature.clone()),
+        false
+    );
+    assert_eq!(
+        test_token_signature(
+            account,
+            contract,
+            0,
+            U256::from_dec_str("32").unwrap(),
+            signature
+        ),
+        false
+    );
+}
+
+#[test]
 fn token_one_more_valid_signature() {
     let account = Key::from_formatted_str(
         "account-hash-9060c0820b5156b1620c8e3344d17f9fad5108f5dc2672f2308439e84363c88e",

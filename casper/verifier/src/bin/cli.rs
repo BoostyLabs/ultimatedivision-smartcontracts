@@ -1,12 +1,12 @@
-use casper_types::{ContractHash, Key, SecretKey};
+use casper_types::{ContractHash, Key, SecretKey, U256};
 use clap::Parser;
 use verifier::VerifyKey;
 
 #[derive(clap::Parser)]
 enum Args {
-    TestNFT {
+    NFT {
         #[clap(short = 'k')]
-        private_key: String,
+        verification_key: String,
         #[clap(short = 'u', parse(try_from_str = parse_key))]
         user: Key,
         #[clap(short = 'c', parse(try_from_str = parse_key))]
@@ -16,6 +16,24 @@ enum Args {
         #[clap(short = 's')]
         signature: String,
     },
+    Token {
+        #[clap(short = 'k')]
+        verification_key: String,
+        #[clap(short = 'u', parse(try_from_str = parse_key))]
+        user: Key,
+        #[clap(short = 'c', parse(try_from_str = parse_key))]
+        contract: Key,
+        #[clap(short = 'v', parse(try_from_str = parse_u256))]
+        value: U256,
+        #[clap(short = 'n')]
+        nonce: u64,
+        #[clap(short = 's')]
+        signature: String,
+    },
+}
+
+fn parse_u256(arg: &str) -> Result<U256, anyhow::Error> {
+    U256::from_dec_str(arg).map_err(|_| anyhow::anyhow!("failed to parse U256"))
 }
 
 fn parse_key(arg: &str) -> Result<Key, anyhow::Error> {
@@ -23,20 +41,13 @@ fn parse_key(arg: &str) -> Result<Key, anyhow::Error> {
 }
 
 fn test_nft_signature(
-    private_key: String,
+    verification_key: String,
     user: Key,
     contract: Key,
     token_id: u64,
     signature: String,
 ) -> Result<(), anyhow::Error> {
-    let secret_key =
-        casper_types::SecretKey::secp256k1_from_bytes(hex::decode(private_key).unwrap()).unwrap();
-    let secret_key = if let SecretKey::Secp256k1(key) = secret_key {
-        key
-    } else {
-        unreachable!();
-    };
-    let verifier = VerifyKey::new(hex::encode(secret_key.verify_key().to_bytes()));
+    let verifier = VerifyKey::new(verification_key);
     verifier
         .verify_token_id(
             signature,
@@ -48,18 +59,49 @@ fn test_nft_signature(
     Ok(())
 }
 
+fn test_token_signature(
+    verification_key: String,
+    user: Key,
+    contract: Key,
+    value: U256,
+    nonce: u64,
+    signature: String,
+) -> Result<(), anyhow::Error> {
+    let verifier = VerifyKey::new(verification_key);
+    verifier
+        .verify_token_and_nonce(
+            signature,
+            value,
+            nonce,
+            ContractHash::from(contract.into_hash().unwrap()),
+            user.into_account().unwrap().as_bytes(),
+        )
+        .unwrap();
+    Ok(())
+}
+
 fn main() -> Result<(), anyhow::Error> {
     let args = Args::parse();
 
     match args {
-        Args::TestNFT {
-            private_key,
+        Args::NFT {
+            verification_key,
             user,
             contract,
             token_id,
             signature,
-        } => test_nft_signature(private_key, user, contract, token_id, signature),
+        } => test_nft_signature(verification_key, user, contract, token_id, signature),
+        Args::Token {
+            verification_key,
+            user,
+            contract,
+            value,
+            nonce,
+            signature,
+        } => test_token_signature(verification_key, user, contract, value, nonce, signature),
     }?;
+
+    println!("Signature is valid for given data");
 
     Ok(())
 }
