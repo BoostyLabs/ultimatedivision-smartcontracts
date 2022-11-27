@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 #[cfg(feature = "contract")]
 use casper_contract::{
     contract_api::{runtime, storage},
@@ -10,9 +12,10 @@ use casper_types::{
     ContractHash, Key, URef, U256,
 };
 use k256::ecdsa::{
+    self,
     recoverable::{self, Signature},
-    signature::Signature as _Signature,
-    VerifyingKey,
+    signature::{DigestSigner, Signature as _Signature, Signer},
+    SigningKey, VerifyingKey,
 };
 use once_cell::unsync::OnceCell;
 use tiny_keccak::Hasher;
@@ -24,14 +27,14 @@ pub fn add_key(named_keys: &mut NamedKeys, verify_key: String) {
 
 #[cfg(feature = "contract")]
 pub trait Verifier {
-    fn verify_token_id(
+    fn verify_uuid(
         &self,
         signature: String,
-        token_id: u64,
+        uuid: &str,
         contract: ContractHash,
         user: &[u8],
     ) -> Option<()> {
-        VerifyKey::instance().verify_token_id(signature, token_id, contract, user)
+        VerifyKey::instance().verify_uuid(signature, uuid, contract, user)
     }
 
     fn verify_token_and_nonce(
@@ -86,18 +89,17 @@ impl VerifyKey {
         named_key.insert(VERIFY_KEY.to_string(), Key::from(storage_uref));
     }
 
-    pub fn verify_token_id(
+    pub fn verify_uuid(
         &self,
         signature: String,
-        token_id: u64,
+        token_id: &str,
         contract: ContractHash,
         user: &[u8],
     ) -> Option<()> {
         let mut bytes = vec![];
         bytes.extend_from_slice(user);
         bytes.extend_from_slice(contract.as_bytes());
-        bytes.extend_from_slice(&[0; 24]); // The number should be 32 bytes
-        bytes.extend_from_slice(&token_id.to_be_bytes());
+        bytes.extend_from_slice(token_id.as_bytes());
 
         let result_hash = fake_ethereum_data_signing(keccak256(&bytes)); // Receive a hash of the packed data.
 
@@ -124,7 +126,7 @@ impl VerifyKey {
     ) -> Option<()> {
         let mut hex_token_string = format!("{:x}", &token);
         if hex_token_string.len() % 2 == 1 {
-            hex_token_string.insert_str(0, "0");
+            hex_token_string.insert(0, '0');
         }
         let mut bytes = vec![];
         bytes.extend_from_slice(user);
