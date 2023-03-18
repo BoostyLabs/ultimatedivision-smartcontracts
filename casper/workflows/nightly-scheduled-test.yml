@@ -7,9 +7,15 @@ on:
     # runs every day at midnight
     - cron: "0 0 * * *"
 
+permissions:
+  contents: write
+
 jobs:
   nightly-make-test:
-    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -33,3 +39,6 @@ jobs:
           footer: "<{run_url}|View Run>"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Fake Commit after 50 days
+        uses: gautamkrishnar/keepalive-workflow@790c7f09285a59b09bb578c85e271c6ff2af97c4 #v1.1.0

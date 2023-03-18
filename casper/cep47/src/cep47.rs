@@ -14,9 +14,6 @@ pub enum Error {
     WrongArguments = 2,
     TokenIdAlreadyExists = 3,
     TokenIdDoesntExist = 4,
-    InvalidSignature = 5,
-    Cryptography = 6,
-    TokenIdReachedLimit = 7,
 }
 
 impl From<Error> for ApiError {

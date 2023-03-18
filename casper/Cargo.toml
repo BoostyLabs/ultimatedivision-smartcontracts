@@ -2,7 +2,9 @@
 
 members = [
     "cep47",
-    "cep47-tests"
+    "contract-market",
+    "verifier",
+    "tests"
 ]
 
 [profile.release]

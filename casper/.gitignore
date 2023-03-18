@@ -1,1 +1,4 @@
-contracts
+target
+tests/wasm/*.wasm
+node_modules
+.DS_Store

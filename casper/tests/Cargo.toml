@@ -1,5 +1,5 @@
 [package]
-name = "cep47-tests"
+name = "tests"
 version = "0.1.0"
 edition = "2018"
 
