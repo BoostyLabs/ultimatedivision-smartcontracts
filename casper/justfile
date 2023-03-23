@@ -22,7 +22,7 @@ test-only:
 copy-wasm-file-to-test:
 	cp target/wasm32-unknown-unknown/release/*.wasm tests/wasm
 
-test: build-contract copy-wasm-file-to-test test-only
+test: build-contract build-contract-market copy-wasm-file-to-test test-only
 
 clippy:
 	cargo clippy --all-targets --all -- -D warnings

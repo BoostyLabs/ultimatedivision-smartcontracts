@@ -327,6 +327,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f6b64db6932c7e49332728e3a6bd82c6b7e16016607d20923b537c3bc4c0d5f"
 
 [[package]]
+name = "contract-bridge-tests"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "casper-contract",
+ "casper-engine-test-support",
+ "casper-execution-engine",
+ "casper-types",
+]
+
+[[package]]
 name = "contract-market"
 version = "0.1.0"
 dependencies = [
@@ -1341,31 +1352,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be55cf8942feac5c765c2c993422806843c9a9a45d4d5c407ad6dd2ea95eb9b6"
 dependencies = [
  "winapi-util",
-]
-
-[[package]]
-name = "test-env"
-version = "0.1.0"
-dependencies = [
- "casper-contract",
- "casper-engine-test-support",
- "casper-execution-engine",
- "casper-types",
-]
-
-[[package]]
-name = "tests"
-version = "0.1.0"
-dependencies = [
- "blake2",
- "casper-contract",
- "casper-engine-test-support",
- "casper-execution-engine",
- "casper-hashing",
- "casper-types",
- "contract-utils",
- "hex",
- "test-env",
 ]
 
 [[package]]

@@ -3,6 +3,10 @@ name = "contract-market"
 version = "0.1.0"
 edition = "2018"
 
+[features]
+default = ["test-support"]
+test-support=["casper-contract/test-support"]
+
 [dependencies]
 casper-contract = "1.4.3"
 casper-types = "1.4.6"
