@@ -37,7 +37,7 @@ const CONTRACT_MARKET_BYTES: &[u8] = include_bytes!("../wasm/contract-market.was
 static DEPLOY_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 use crate::constants::{
-    TEST_ACCOUNT_BALANCE, TEST_BLOCK_TIME, TEST_ACCOUNT, PARAM_AMOUNT, PARAM_RECIPIENT, PARAM_NFT_NAME, PARAM_NFT_SYMBOL, PARAM_MARKET_CONTRACT_NAME, PARAM_NFT_CONTRACT_NAME, PARAM_NFT_PRICE, EP_MINT
+    TEST_ACCOUNT_BALANCE, TEST_BLOCK_TIME, TEST_ACCOUNT, PARAM_AMOUNT, PARAM_RECIPIENT, PARAM_NFT_NAME, PARAM_NFT_SYMBOL, PARAM_MARKET_CONTRACT_NAME, PARAM_NFT_CONTRACT_NAME, PARAM_NFT_PRICE, EP_MINT, EP_CREATE_LISTING, EP_APPROVE
 };
 pub type Meta = BTreeMap<String, String>;
 pub type TokenId = U256;
@@ -330,15 +330,18 @@ pub fn dictionary_key<T: ToBytes>(value: &T) -> String {
     base64::encode(value.to_bytes().expect("infallible"))
 }
 
-pub fn query_balance<S>(
+pub fn query_dictionary<S, T, R>(
     builder: &mut WasmTestBuilder<S>,
     contract: ContractHash,
-    address: &Key,
-) -> U256
+    value: T,
+    key: &str
+) -> R
 where
     S: StateProvider,
     EngineError: From<S::Error>,
     <S as StateProvider>::Error: Into<ExecError>,
+    T: ToString,
+    R: CLTyped + FromBytes
 {
     let contract = builder
         .query(None, Key::Hash(contract.value()), &[])
@@ -347,24 +350,24 @@ where
         .cloned()
         .unwrap();
 
-    let balance_uref = contract
+    let uref = contract
         .named_keys()
-        .get("balances")
+        .get(key)
         .unwrap()
         .as_uref()
         .cloned()
         .unwrap();
 
-    let balance = builder
-        .query_dictionary_item(None, balance_uref, &dictionary_key(address))
+    let value = builder
+        .query_dictionary_item(None, uref, &value.to_string())
         .unwrap()
         .as_cl_value()
         .cloned()
         .unwrap()
-        .into_t::<U256>()
+        .into_t::<R>()
         .unwrap();
 
-    balance
+    value
 }
 
 pub fn query<S, T>(
@@ -392,7 +395,26 @@ where
 }
 
 
+pub fn approve_token(
+    cep47_hash: ContractHash,
+    spender: ContractPackageHash,
+    account_address: AccountHash
+) -> DeployItem {
 
+    println!("approve_token {:?}", spender.into_bytes());
+
+    simple_deploy_builder(account_address)
+        .with_stored_session_hash(
+            cep47_hash,
+            EP_APPROVE,
+            runtime_args! {
+                "spender" => Key::from(spender),
+                "token_ids" => vec![U256::one()],
+            },
+        )
+        .build()
+        
+}
 
 pub fn mint_tokens(
     cep47_hash: ContractHash,
@@ -409,6 +431,45 @@ pub fn mint_tokens(
                 "token_ids" => vec![U256::one()],
                 "token_meta" => test_meta_nft(),
                 "count" => 1
+            },
+        )
+        .build()
+}
+
+
+pub fn create_listing(
+    market_hash: ContractHash,
+    cep47_hash: ContractHash,
+    account_address: AccountHash,
+    price: U256
+) -> DeployItem {
+
+    println!("AAAaccount_address {:?}", Key::from(account_address).to_string());
+    simple_deploy_builder(account_address)
+        .with_stored_session_hash(
+            market_hash,
+            EP_CREATE_LISTING,
+            runtime_args! {
+                "token_contract_hash" => ["contract-", &cep47_hash.to_string()].join(""),
+                "token_id" => "1",
+                "price" => price,
+            },
+        )
+        .build()
+}
+
+pub fn owner_of(
+    cep47_hash: ContractHash,
+    account_address: AccountHash
+) -> DeployItem {
+
+    println!("AAAaccount_address {:?}", Key::from(account_address).to_string());
+    simple_deploy_builder(account_address)
+        .with_stored_session_hash(
+            cep47_hash,
+            "owner_of",
+            runtime_args! {
+                "token_id" => "1",
             },
         )
         .build()
@@ -495,8 +556,7 @@ pub fn fill_purse_on_token_contract(
         .commit()
         .expect_success();
 
-    let balance = query_balance(&mut context.builder, token_hash, &recipient);
-
+    let balance: U256 = query_dictionary(&mut context.builder, token_hash, recipient, &dictionary_key(&"balances"));
     assert_eq!(balance, amount);
 }
 

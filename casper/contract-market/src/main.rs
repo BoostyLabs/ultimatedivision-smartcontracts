@@ -19,7 +19,7 @@ use casper_contract::{
 use casper_types::{
     contracts::{EntryPoint, EntryPointAccess, EntryPointType, EntryPoints},
     runtime_args, RuntimeArgs, Parameter,
-    Key, URef, ContractHash, CLTyped, U256, U512};
+    Key, URef, ContractHash, CLTyped, U256, U512, CLValue};
 
 use event::{MarketEvent};
 mod event;
@@ -52,6 +52,8 @@ pub extern "C" fn create_listing() -> () {
     if !transfer_approved(token_contract_hash, &token_id, token_owner) {
         runtime::revert(Error::NeedsTransferApproval);
     }
+    // let str = alloc::format!("vvv-MARKET-3");
+    // runtime::print(&str);
 
     let listing = Listing {
         token_contract: token_contract_hash,
@@ -69,6 +71,7 @@ pub extern "C" fn create_listing() -> () {
         seller: token_owner,
         token_contract: token_contract_string,
         token_id: token_id,
+        listing_id: listing_id,
         price: price
     })
 }
@@ -288,7 +291,6 @@ fn get_entry_points() -> EntryPoints {
     entry_points.add_entry_point(EntryPoint::new(
         "create_listing",
         vec![
-            Parameter::new(NFT_CONTRACT_HASH_ARG, String::cl_type()),
             Parameter::new(TOKEN_ID_ARG, String::cl_type()),
             Parameter::new(PRICE_ARG, U256::cl_type())
         ],

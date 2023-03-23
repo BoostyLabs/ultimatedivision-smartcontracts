@@ -22,6 +22,8 @@ test-only:
 copy-wasm-file-to-test:
 	cp target/wasm32-unknown-unknown/release/*.wasm tests/wasm
 
+build-all: build-contract build-contract-market copy-wasm-file-to-test
+
 test: build-contract build-contract-market copy-wasm-file-to-test test-only
 
 clippy:

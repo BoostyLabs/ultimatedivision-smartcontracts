@@ -9,6 +9,7 @@ pub enum MarketEvent {
         seller: Key, //Key vs AccountHash so we know what we're getting client side
         token_contract: String,
         token_id: String,
+        listing_id: String,
         price: U512
     },
     ListingPurchased {

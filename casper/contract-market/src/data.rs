@@ -57,6 +57,7 @@ const SELLER: &str = "seller";
 const BUYER: &str = "buyer";
 const TOKEN_CONTRACT: &str = "token_contract";
 const TOKEN_ID: &str = "token_id";
+const LISTING_ID: &str = "listing_id";
 const PRICE: &str = "price";
 
 const LISTING_DICTIONARY: &str = "listings";
@@ -188,6 +189,7 @@ pub fn emit(event: &MarketEvent) {
             seller,
             token_contract,
             token_id,
+            listing_id,
             price
         } => {
             let mut param = BTreeMap::new();
@@ -195,6 +197,7 @@ pub fn emit(event: &MarketEvent) {
             param.insert(SELLER, seller.to_string());
             param.insert(TOKEN_CONTRACT, token_contract.to_string());
             param.insert(TOKEN_ID, token_id.to_string());
+            param.insert(LISTING_ID, listing_id.to_string());
             param.insert(PRICE, price.to_string());
             param.insert(EVENT_TYPE, "market_listing_created".to_string());
             param

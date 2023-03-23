@@ -19,3 +19,5 @@ pub const PARAM_NFT_PRICE: u64 = 111;
 pub const PARAM_MARKET_CONTRACT_NAME: &str = "market";
 
 pub const EP_MINT: &str = "mint_copies";
+pub const EP_CREATE_LISTING: &str = "create_listing";
+pub const EP_APPROVE: &str = "approve";

@@ -1,21 +1,25 @@
 pub mod constants;
 pub mod utils;
+use std::collections::BTreeMap;
+
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use crate::constants::{
-        TEST_BLOCK_TIME, PARAM_AMOUNT
+        TEST_BLOCK_TIME, PARAM_AMOUNT, EP_CREATE_LISTING
     };
     use crate::utils::{
         arbitrary_user, arbitrary_user_key,  deploy_market, deploy_cep47,
         init_environment, deploy_erc20, execution_context, execution_error,
         fill_purse_on_token_contract, exec_deploy, 
          setup_context, simple_deploy_builder,
-        test_public_key, mint_tokens, query,
+        test_public_key, mint_tokens, query, create_listing, approve_token, owner_of, query_dictionary,
     };
     use casper_execution_engine::core::{engine_state, execution};
     use casper_execution_engine::storage::global_state::StateProvider;
-    use casper_types::{runtime_args, RuntimeArgs, U256};
+    use casper_types::{runtime_args, RuntimeArgs, U256, Key};
 
     #[test]
     fn test_deploy_cep47() {
@@ -40,8 +44,10 @@ mod tests {
         let (context, _,_,cep47_hash,_,_,_) = init_environment();
         
 
-        let data = query::<_, U256>(&context.builder, cep47_hash, "total_supply");
+        let data: U256 = query(&context.builder, cep47_hash, "total_supply");
         println!("XXXX {:?}", data);
+
+
     }
 
     // #[test]
@@ -73,34 +79,36 @@ mod tests {
     // }
 
     #[test]
-    fn set_stable_commission_percent_called_by_non_owner() {
+    fn create_listing_test() {
         /*
             Scenario:
-            1. Call "set_stable_commission_percent" entrypoint to set percent
-            2. Assert fail
+            1. Call "create listing" entrypoint to create a listing
+            2. Assert success
         */
 
-        let mut context = setup_context();
+        let price = U256::one() * 10;
+        let (mut context, _,_,cep47_hash,_,market_hash, market_package_hash) = init_environment();
+        let approve_deploy = approve_token(cep47_hash, market_package_hash,  context.account.address);
+        exec_deploy(&mut context, approve_deploy).expect_success();
 
-        // Deploy the bridge contract
-        let (market_hash, _) = deploy_market(&mut context.builder, context.account.address);
+        let create_listing_deploy = create_listing(market_hash, cep47_hash, context.account.address, price);
+        exec_deploy(&mut context, create_listing_deploy).expect_success();
 
-        // Try to set percent
-        let user = arbitrary_user(&mut context);
-        let deploy_item = simple_deploy_builder(user.address)
-            .with_stored_session_hash(
-                market_hash,
-                "EP_SET_STABLE_COMMISSION_PERCENT",
-                runtime_args! {
-                    "PARAM_STABLE_COMMISSION_PERCENT" => "TEST_STABLE_COMMISSION_PERCENT()",
-                },
-            )
-            .build();
+        // let data: Option<Key> = query_dictionary(&mut context.builder, cep47_hash, U256::one(), "owners");
+        // println!("XXXX {:?}", data.unwrap());
+        // println!("XXXX2 {:?}", market_hash);
 
-        let error = execution_error(&mut context, deploy_item);
+        let res: BTreeMap<String, String> = query(&mut context.builder, market_hash, "latest_event");
+        println!("XXXX2 {:?}", res);
+        assert_eq!(res.get("event_type").unwrap(), "market_listing_created");
+        assert_eq!(res.get("contract_package_hash").unwrap(), &market_package_hash.to_string());
+        assert_eq!(res.get("price").unwrap(), &price.to_string());
+        assert_eq!(res.get("token_contract").unwrap(), &cep47_hash.to_formatted_string());
+        let listing_id = res.get("listing_id").unwrap();
 
-        let expected_error = engine_state::Error::Exec(execution::Error::InvalidContext);
-        assert_eq!(error.to_string(), expected_error.to_string());
+        // vvvq
+        //let data: BTreeMap<String, String> = query_dictionary(&mut context.builder, market_hash, listing_id, "listings");
+        
     }
 
 
