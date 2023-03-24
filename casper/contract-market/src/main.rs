@@ -19,7 +19,7 @@ use casper_contract::{
 use casper_types::{
     contracts::{EntryPoint, EntryPointAccess, EntryPointType, EntryPoints},
     runtime_args, RuntimeArgs, Parameter,
-    Key, URef, ContractHash, CLTyped, U256, U512, CLValue};
+    Key, URef, ContractHash, CLTyped, U256, U512, CLValue, U128};
 
 use event::{MarketEvent};
 mod event;
@@ -33,17 +33,38 @@ const OFFERS_PURSE: &str = "offers_purse";
 
 const NFT_CONTRACT_HASH_ARG: &str = "token_contract_hash";
 const TOKEN_ID_ARG: &str = "token_id";
-const PRICE_ARG: &str = "price";
+const MIN_BID_PRICE_ARG: &str = "min_bid_price";
+const REDEMPTION_PRICE_ARG: &str = "redemption_price";
+const AUCTION_DURATION_ARG: &str = "auction_duration";
 const BUYER_PURSE_ARG: &str = "purse";
 const ACCEPTED_OFFER_ARG: &str = "accepted_offer";
 
+
+// vvvrev:
+// add min bid price
+// add redeem price
+// add check that redeem price >= redeem price
+// add auction_duration
+// 2h + 2h tests = 4h
+// transfer_nft? (+4h)
+// cover: 50%
 #[no_mangle]
 pub extern "C" fn create_listing() -> () {
     let token_owner = Key::Account(runtime::get_caller());
     let token_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
     let token_contract_hash: ContractHash = ContractHash::from_formatted_str(&token_contract_string).unwrap();
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
-    let price: U512 = runtime::get_named_arg(PRICE_ARG);
+    let min_bid_price: U512 = runtime::get_named_arg(MIN_BID_PRICE_ARG);
+    let redemption_price: U512 = runtime::get_named_arg(REDEMPTION_PRICE_ARG);
+    let auction_duration: U128 = runtime::get_named_arg(AUCTION_DURATION_ARG);
+
+    if redemption_price.le(&min_bid_price) {
+        runtime::revert(Error::RedemptionPriceLowerThanMinBid);
+    }
+    
+    if auction_duration.is_zero() {
+        runtime::revert(Error::AuctionDurationZero);
+    }
 
     if token_owner != get_token_owner(token_contract_hash, &token_id).unwrap() {
         runtime::revert(Error::PermissionDenied);
@@ -58,7 +79,9 @@ pub extern "C" fn create_listing() -> () {
     let listing = Listing {
         token_contract: token_contract_hash,
         token_id: token_id.clone(),
-        price: price,
+        min_bid_price: min_bid_price,
+        redemption_price: redemption_price,
+        auction_duration: auction_duration,
         seller: token_owner
     };
 
@@ -66,16 +89,24 @@ pub extern "C" fn create_listing() -> () {
     let dictionary_uref: URef = get_listing_dictionary();
     storage::dictionary_put(dictionary_uref, &listing_id, listing);
 
+    let str = alloc::format!("vvv-MARKET-3 {min_bid_price} {redemption_price}");
+    runtime::print(&str);
+
     emit(&MarketEvent::ListingCreated {
         package: contract_package_hash(),
         seller: token_owner,
         token_contract: token_contract_string,
         token_id: token_id,
         listing_id: listing_id,
-        price: price
+        min_bid_price: min_bid_price,
+        redemption_price: redemption_price,
+        auction_duration: auction_duration,
     })
 }
 
+// vvvrev:
+// add canceling offer +8h
+// cover: 50%
 #[no_mangle]
 pub fn buy_listing() -> () {
     let buyer = Key::Account(runtime::get_caller());
@@ -88,7 +119,7 @@ pub fn buy_listing() -> () {
     let buyer_purse: URef = runtime::get_named_arg(BUYER_PURSE_ARG);
     let purse_balance: U512 = system::get_purse_balance(buyer_purse).unwrap();
 
-    if purse_balance < listing.price {
+    if purse_balance < listing.redemption_price {
         runtime::revert(Error::BalanceInsufficient);
     }
 
@@ -97,7 +128,7 @@ pub fn buy_listing() -> () {
     system::transfer_from_purse_to_account(
         buyer_purse,
         seller.into_account().unwrap_or_revert(),
-        listing.price,
+        listing.redemption_price,
         None
     ).unwrap_or_revert();
 
@@ -119,7 +150,9 @@ pub fn buy_listing() -> () {
         buyer: buyer,
         token_contract: token_contract_string,
         token_id: token_id,
-        price: listing.price
+        min_bid_price: listing.min_bid_price,
+        redemption_price: listing.redemption_price,
+        auction_duration: listing.auction_duration
     })
 }
 
@@ -146,6 +179,10 @@ pub fn cancel_listing() -> () {
     })
 }
 
+// vvvrev:
+// get previous offer, check and return it
+// 8h-16h
+// cover: 50%
 #[no_mangle]
 pub extern "C" fn make_offer() -> () {
     let bidder = Key::Account(runtime::get_caller());
@@ -178,6 +215,8 @@ pub extern "C" fn make_offer() -> () {
     })
 }
 
+
+// vvvrev: re-use some code
 #[no_mangle]
 pub extern "C" fn withdraw_offer() -> () {
     let bidder = Key::Account(runtime::get_caller());
@@ -213,6 +252,10 @@ pub extern "C" fn withdraw_offer() -> () {
     })
 }
 
+// vvvrev:
+// reuse code
+// 16h
+// cover: 50%
 #[no_mangle]
 pub extern "C" fn accept_offer() -> () {
     let seller = Key::Account(runtime::get_caller());
@@ -292,7 +335,9 @@ fn get_entry_points() -> EntryPoints {
         "create_listing",
         vec![
             Parameter::new(TOKEN_ID_ARG, String::cl_type()),
-            Parameter::new(PRICE_ARG, U256::cl_type())
+            Parameter::new(MIN_BID_PRICE_ARG, U256::cl_type()),
+            Parameter::new(REDEMPTION_PRICE_ARG, U256::cl_type()),
+            Parameter::new(AUCTION_DURATION_ARG, U256::cl_type())
         ],
         <()>::cl_type(),
         EntryPointAccess::Public,

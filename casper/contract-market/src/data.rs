@@ -14,7 +14,7 @@ use casper_types::{
     system::CallStackElement,
     bytesrepr::ToBytes,
     runtime_args, RuntimeArgs,
-    ApiError, Key, URef, ContractHash, ContractPackageHash, CLTyped, U256, U512};
+    ApiError, Key, URef, ContractHash, ContractPackageHash, CLTyped, U256, U512, U128};
 
 use casper_types_derive::{CLTyped, FromBytes, ToBytes};
 
@@ -32,7 +32,9 @@ pub enum Error {
     NoMatchingOffer = 1004,
     OfferExists = 1005,
     OfferPurseRetrieval = 1006,
-    NeedsTransferApproval = 1007
+    NeedsTransferApproval = 1007,
+    RedemptionPriceLowerThanMinBid = 1008,
+    AuctionDurationZero = 1009,
 }
 
 impl From<Error> for ApiError {
@@ -47,7 +49,9 @@ pub struct Listing {
     pub seller: Key,
     pub token_contract: ContractHash,
     pub token_id: String,
-    pub price: U512
+    pub min_bid_price: U512,
+    pub redemption_price: U512,
+    pub auction_duration: U128,
     // vvvrev: add params
 }
 
@@ -58,7 +62,9 @@ const BUYER: &str = "buyer";
 const TOKEN_CONTRACT: &str = "token_contract";
 const TOKEN_ID: &str = "token_id";
 const LISTING_ID: &str = "listing_id";
-const PRICE: &str = "price";
+const MIN_BID_PRICE: &str = "min_bid_price";
+const REDEMPTION_PRICE: &str = "redemption_price";
+const AUCTION_DURATION: &str = "auction_duration";
 
 const LISTING_DICTIONARY: &str = "listings";
 const OFFER_DICTIONARY: &str = "offers";
@@ -190,7 +196,9 @@ pub fn emit(event: &MarketEvent) {
             token_contract,
             token_id,
             listing_id,
-            price
+            min_bid_price,
+            redemption_price,
+            auction_duration
         } => {
             let mut param = BTreeMap::new();
             param.insert(CONTRACT_PACKAGE_HASH, package.to_string());
@@ -198,7 +206,9 @@ pub fn emit(event: &MarketEvent) {
             param.insert(TOKEN_CONTRACT, token_contract.to_string());
             param.insert(TOKEN_ID, token_id.to_string());
             param.insert(LISTING_ID, listing_id.to_string());
-            param.insert(PRICE, price.to_string());
+            param.insert(MIN_BID_PRICE, min_bid_price.to_string());
+            param.insert(REDEMPTION_PRICE, redemption_price.to_string());
+            param.insert(AUCTION_DURATION, auction_duration.to_string());
             param.insert(EVENT_TYPE, "market_listing_created".to_string());
             param
         }
@@ -208,7 +218,9 @@ pub fn emit(event: &MarketEvent) {
             buyer,
             token_contract,
             token_id,
-            price
+            min_bid_price,
+            redemption_price,
+            auction_duration
         } => {
             let mut param = BTreeMap::new();
             param.insert(CONTRACT_PACKAGE_HASH, package.to_string());
@@ -216,7 +228,9 @@ pub fn emit(event: &MarketEvent) {
             param.insert(BUYER, buyer.to_string());
             param.insert(TOKEN_CONTRACT, token_contract.to_string());
             param.insert(TOKEN_ID, token_id.to_string());
-            param.insert(PRICE, price.to_string());
+            param.insert(MIN_BID_PRICE, min_bid_price.to_string());
+            param.insert(REDEMPTION_PRICE, redemption_price.to_string());
+            param.insert(AUCTION_DURATION, auction_duration.to_string());
             param.insert(EVENT_TYPE, "market_listing_purchased".to_string());
             param
         }
@@ -244,7 +258,7 @@ pub fn emit(event: &MarketEvent) {
             param.insert(BUYER, buyer.to_string());
             param.insert(TOKEN_CONTRACT, token_contract.to_string());
             param.insert(TOKEN_ID, token_id.to_string());
-            param.insert(PRICE, price.to_string());
+            param.insert(REDEMPTION_PRICE, price.to_string());
             param.insert(EVENT_TYPE, "market_offer_created".to_string());
             param
         },
@@ -276,7 +290,7 @@ pub fn emit(event: &MarketEvent) {
             param.insert(BUYER, buyer.to_string());
             param.insert(TOKEN_CONTRACT, token_contract.to_string());
             param.insert(TOKEN_ID, token_id.to_string());
-            param.insert(PRICE, price.to_string());
+            param.insert(REDEMPTION_PRICE, price.to_string());
             param.insert(EVENT_TYPE, "market_offer_accepted".to_string());
             param
         }

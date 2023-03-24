@@ -1,7 +1,7 @@
 use alloc::{
     string::String
 };
-use casper_types::{ContractPackageHash, Key, U512};
+use casper_types::{ContractPackageHash, Key, U512, U128};
 
 pub enum MarketEvent {
     ListingCreated {
@@ -10,7 +10,9 @@ pub enum MarketEvent {
         token_contract: String,
         token_id: String,
         listing_id: String,
-        price: U512
+        min_bid_price: U512,
+        redemption_price: U512,
+        auction_duration: U128,
     },
     ListingPurchased {
         package: ContractPackageHash,
@@ -18,7 +20,9 @@ pub enum MarketEvent {
         buyer: Key,
         token_contract: String,
         token_id: String,
-        price: U512
+        min_bid_price: U512,
+        redemption_price: U512,
+        auction_duration: U128,
     },
     ListingCanceled {
         package: ContractPackageHash,

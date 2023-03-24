@@ -341,7 +341,7 @@ where
     EngineError: From<S::Error>,
     <S as StateProvider>::Error: Into<ExecError>,
     T: ToString,
-    R: CLTyped + FromBytes
+    R: CLTyped + FromBytes + Sized
 {
     let contract = builder
         .query(None, Key::Hash(contract.value()), &[])
@@ -357,6 +357,14 @@ where
         .as_uref()
         .cloned()
         .unwrap();
+
+        let value1 = builder
+        .query_dictionary_item(None, uref, &value.to_string())
+        .unwrap()
+        .as_cl_value()
+        .cloned()
+        .unwrap();
+    println!("ZZZ {:?}", value1);
 
     let value = builder
         .query_dictionary_item(None, uref, &value.to_string())
@@ -441,7 +449,9 @@ pub fn create_listing(
     market_hash: ContractHash,
     cep47_hash: ContractHash,
     account_address: AccountHash,
-    price: U256
+    min_bid_price: U256,
+    redemption_price: U256,
+    auction_duration: U256,
 ) -> DeployItem {
 
     println!("AAAaccount_address {:?}", Key::from(account_address).to_string());
@@ -452,7 +462,9 @@ pub fn create_listing(
             runtime_args! {
                 "token_contract_hash" => ["contract-", &cep47_hash.to_string()].join(""),
                 "token_id" => "1",
-                "price" => price,
+                "min_bid_price" => min_bid_price,
+                "redemption_price" => redemption_price,
+                "auction_duration" => auction_duration,
             },
         )
         .build()

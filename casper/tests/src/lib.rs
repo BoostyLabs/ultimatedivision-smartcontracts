@@ -5,7 +5,9 @@ use std::collections::BTreeMap;
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
+    use std::any::Any;
+    use std::collections::{BTreeMap};
+    use std::iter::Map;
 
     use crate::constants::{
         TEST_BLOCK_TIME, PARAM_AMOUNT, EP_CREATE_LISTING
@@ -19,7 +21,8 @@ mod tests {
     };
     use casper_execution_engine::core::{engine_state, execution};
     use casper_execution_engine::storage::global_state::StateProvider;
-    use casper_types::{runtime_args, RuntimeArgs, U256, Key};
+    use casper_types::bytesrepr::Bytes;
+    use casper_types::{runtime_args, RuntimeArgs, U256, Key, CLTyped};
 
     #[test]
     fn test_deploy_cep47() {
@@ -86,12 +89,21 @@ mod tests {
             2. Assert success
         */
 
-        let price = U256::one() * 10;
+        let min_bid_price = U256::one() * 3;
+        let redemption_price = U256::one() * 10;
+        let auction_duration: U256 = U256::one() * 86_400;
         let (mut context, _,_,cep47_hash,_,market_hash, market_package_hash) = init_environment();
         let approve_deploy = approve_token(cep47_hash, market_package_hash,  context.account.address);
         exec_deploy(&mut context, approve_deploy).expect_success();
 
-        let create_listing_deploy = create_listing(market_hash, cep47_hash, context.account.address, price);
+        let create_listing_deploy = create_listing(
+            market_hash, 
+            cep47_hash,
+            context.account.address,
+            min_bid_price, 
+            redemption_price,
+            auction_duration
+        );
         exec_deploy(&mut context, create_listing_deploy).expect_success();
 
         // let data: Option<Key> = query_dictionary(&mut context.builder, cep47_hash, U256::one(), "owners");
@@ -99,17 +111,55 @@ mod tests {
         // println!("XXXX2 {:?}", market_hash);
 
         let res: BTreeMap<String, String> = query(&mut context.builder, market_hash, "latest_event");
-        println!("XXXX2 {:?}", res);
+                println!("resresres {:?}", res);
+
         assert_eq!(res.get("event_type").unwrap(), "market_listing_created");
         assert_eq!(res.get("contract_package_hash").unwrap(), &market_package_hash.to_string());
-        assert_eq!(res.get("price").unwrap(), &price.to_string());
+        assert_eq!(res.get("min_bid_price").unwrap(), &min_bid_price.to_string());
+        assert_eq!(res.get("redemption_price").unwrap(), &redemption_price.to_string());
+        assert_eq!(res.get("auction_duration").unwrap(), &auction_duration.to_string());
         assert_eq!(res.get("token_contract").unwrap(), &cep47_hash.to_formatted_string());
-        let listing_id = res.get("listing_id").unwrap();
 
-        // vvvq
-        //let data: BTreeMap<String, String> = query_dictionary(&mut context.builder, market_hash, listing_id, "listings");
-        
     }
+
+
+
+    // NEGATIVE CASES:
+
+    // #[test]
+    // fn create_listing_test_invalid_auction_time() {
+    //     /*
+    //         Scenario:
+    //         1. Call "create listing" entrypoint to create a listing
+    //         2. Assert success
+    //     */
+
+    //     let min_bid_price: U256 = U256::one() * 3;
+    //     let redemption_price: U256 = U256::one() * 10;
+    //     let auction_duration: U256 = U256::zero();
+    //     let (mut context, _,_,cep47_hash,_,market_hash, market_package_hash) = init_environment();
+    //     let approve_deploy = approve_token(cep47_hash, market_package_hash,  context.account.address);
+    //     exec_deploy(&mut context, approve_deploy).expect_success();
+
+    //     let create_listing_deploy = create_listing(
+    //         market_hash, 
+    //         cep47_hash,
+    //         context.account.address,
+    //         min_bid_price, 
+    //         redemption_price,
+    //         auction_duration
+    //     );
+
+
+    // //    exec_deploy(&mut context, create_listing_deploy).expect_success();
+
+    // //    let expected_error = engine_state::Error::Exec(execution::Error::Revert(ApiError::User(
+    // //        ERC20_INSUFFIENT_BALANCE_ERROR_CODE,
+    // //    )));
+
+
+
+    // }
 
 
 }
