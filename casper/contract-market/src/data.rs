@@ -47,7 +47,7 @@ impl From<Error> for ApiError {
 #[derive(CLTyped, ToBytes, FromBytes)]
 pub struct Listing {
     pub seller: Key,
-    pub token_contract: ContractHash,
+    pub nft_contract: ContractHash,
     pub token_id: String,
     pub min_bid_price: U512,
     pub redemption_price: U512,
@@ -59,7 +59,7 @@ const EVENT_TYPE: &str = "event_type";
 const CONTRACT_PACKAGE_HASH: &str = "contract_package_hash";
 const SELLER: &str = "seller";
 const BUYER: &str = "buyer";
-const TOKEN_CONTRACT: &str = "token_contract";
+const NFT_CONTRACT: &str = "nft_contract";
 const TOKEN_ID: &str = "token_id";
 const LISTING_ID: &str = "listing_id";
 const MIN_BID_PRICE: &str = "min_bid_price";
@@ -82,9 +82,9 @@ pub fn contract_package_hash() -> ContractPackageHash {
     package_hash.unwrap_or_revert()
 }
 
-pub fn transfer_approved(token_contract_hash: ContractHash, token_id: &str, owner: Key) -> bool {
+pub fn transfer_approved(nft_contract_hash: ContractHash, token_id: &str, owner: Key) -> bool {
     let approved = runtime::call_contract::<Option<Key>>(
-        token_contract_hash,
+        nft_contract_hash,
         "get_approved",
         runtime_args! {
             "owner" => owner,
@@ -98,8 +98,8 @@ pub fn transfer_approved(token_contract_hash: ContractHash, token_id: &str, owne
             .unwrap()
 }
 
-pub fn get_id<T: CLTyped + ToBytes>(token_contract: &T, token_id: &T) -> String {
-    let mut bytes_a = token_contract.to_bytes().unwrap_or_revert();
+pub fn get_id<T: CLTyped + ToBytes>(nft_contract: &T, token_id: &T) -> String {
+    let mut bytes_a = nft_contract.to_bytes().unwrap_or_revert();
     let mut bytes_b = token_id.to_bytes().unwrap_or_revert();
 
     bytes_a.append(&mut bytes_b);
@@ -115,9 +115,9 @@ pub fn get_dictionary_uref(key: &str) -> URef {
     }
 }
 
-pub fn get_token_owner(token_contract_hash: ContractHash, token_id: &str) -> Option<Key> {
+pub fn get_token_owner(nft_contract_hash: ContractHash, token_id: &str) -> Option<Key> {
     runtime::call_contract::<Option<Key>>(
-        token_contract_hash,
+        nft_contract_hash,
         "owner_of",
         runtime_args! {
             "token_id" => U256::from_dec_str(&token_id).unwrap()
@@ -150,8 +150,8 @@ pub fn get_listing_dictionary() -> URef {
 }
 
 // use when it doesn't matter if listing exists or not & no event needed
-pub fn force_cancel_listing(token_contract: &str, token_id: &str) -> () {
-    let listing_id: String = get_id(&token_contract, &token_id);
+pub fn force_cancel_listing(nft_contract: &str, token_id: &str) -> () {
+    let listing_id: String = get_id(&nft_contract, &token_id);
     let dictionary_uref = get_dictionary_uref(LISTING_DICTIONARY);
     storage::dictionary_put(dictionary_uref, &listing_id, None::<Listing>);
 }
@@ -193,7 +193,7 @@ pub fn emit(event: &MarketEvent) {
         MarketEvent::ListingCreated {
             package,
             seller,
-            token_contract,
+            nft_contract,
             token_id,
             listing_id,
             min_bid_price,
@@ -203,7 +203,7 @@ pub fn emit(event: &MarketEvent) {
             let mut param = BTreeMap::new();
             param.insert(CONTRACT_PACKAGE_HASH, package.to_string());
             param.insert(SELLER, seller.to_string());
-            param.insert(TOKEN_CONTRACT, token_contract.to_string());
+            param.insert(NFT_CONTRACT, nft_contract.to_string());
             param.insert(TOKEN_ID, token_id.to_string());
             param.insert(LISTING_ID, listing_id.to_string());
             param.insert(MIN_BID_PRICE, min_bid_price.to_string());
@@ -216,7 +216,7 @@ pub fn emit(event: &MarketEvent) {
             package,
             seller,
             buyer,
-            token_contract,
+            nft_contract,
             token_id,
             min_bid_price,
             redemption_price,
@@ -226,7 +226,7 @@ pub fn emit(event: &MarketEvent) {
             param.insert(CONTRACT_PACKAGE_HASH, package.to_string());
             param.insert(SELLER, seller.to_string());
             param.insert(BUYER, buyer.to_string());
-            param.insert(TOKEN_CONTRACT, token_contract.to_string());
+            param.insert(NFT_CONTRACT, nft_contract.to_string());
             param.insert(TOKEN_ID, token_id.to_string());
             param.insert(MIN_BID_PRICE, min_bid_price.to_string());
             param.insert(REDEMPTION_PRICE, redemption_price.to_string());
@@ -236,12 +236,12 @@ pub fn emit(event: &MarketEvent) {
         }
         MarketEvent::ListingCanceled {
             package,
-            token_contract,
+            nft_contract,
             token_id
         } => {
             let mut param = BTreeMap::new();
             param.insert(CONTRACT_PACKAGE_HASH, package.to_string());
-            param.insert(TOKEN_CONTRACT, token_contract.to_string());
+            param.insert(NFT_CONTRACT, nft_contract.to_string());
             param.insert(TOKEN_ID, token_id.to_string());
             param.insert(EVENT_TYPE, "market_listing_canceled".to_string());
             param
@@ -249,14 +249,14 @@ pub fn emit(event: &MarketEvent) {
         MarketEvent::OfferCreated {
             package,
             buyer,
-            token_contract,
+            nft_contract,
             token_id,
             price
         } => {
             let mut param = BTreeMap::new();
             param.insert(CONTRACT_PACKAGE_HASH, package.to_string());
             param.insert(BUYER, buyer.to_string());
-            param.insert(TOKEN_CONTRACT, token_contract.to_string());
+            param.insert(NFT_CONTRACT, nft_contract.to_string());
             param.insert(TOKEN_ID, token_id.to_string());
             param.insert(REDEMPTION_PRICE, price.to_string());
             param.insert(EVENT_TYPE, "market_offer_created".to_string());
@@ -265,13 +265,13 @@ pub fn emit(event: &MarketEvent) {
         MarketEvent::OfferWithdraw {
             package,
             buyer,
-            token_contract,
+            nft_contract,
             token_id
         } => {
             let mut param = BTreeMap::new();
             param.insert(CONTRACT_PACKAGE_HASH, package.to_string());
             param.insert(BUYER, buyer.to_string());
-            param.insert(TOKEN_CONTRACT, token_contract.to_string());
+            param.insert(NFT_CONTRACT, nft_contract.to_string());
             param.insert(TOKEN_ID, token_id.to_string());
             param.insert(EVENT_TYPE, "market_offer_withdraw".to_string());
             param
@@ -280,7 +280,7 @@ pub fn emit(event: &MarketEvent) {
             package,
             seller,
             buyer,
-            token_contract,
+            nft_contract,
             token_id,
             price
         } => {
@@ -288,7 +288,7 @@ pub fn emit(event: &MarketEvent) {
             param.insert(CONTRACT_PACKAGE_HASH, package.to_string());
             param.insert(SELLER, seller.to_string());
             param.insert(BUYER, buyer.to_string());
-            param.insert(TOKEN_CONTRACT, token_contract.to_string());
+            param.insert(NFT_CONTRACT, nft_contract.to_string());
             param.insert(TOKEN_ID, token_id.to_string());
             param.insert(REDEMPTION_PRICE, price.to_string());
             param.insert(EVENT_TYPE, "market_offer_accepted".to_string());

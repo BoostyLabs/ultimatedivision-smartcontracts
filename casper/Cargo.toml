@@ -2,6 +2,7 @@
 
 members = [
     "cep47",
+    "erc20",
     "contract-market",
     "verifier",
     "tests"

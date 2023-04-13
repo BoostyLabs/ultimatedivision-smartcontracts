@@ -9,7 +9,7 @@ use alloc::{
     string::String,
     str,
     vec, vec::Vec,
-    collections::BTreeMap
+    collections::BTreeMap, format
 };
 
 use casper_contract::{
@@ -19,8 +19,9 @@ use casper_contract::{
 use casper_types::{
     contracts::{EntryPoint, EntryPointAccess, EntryPointType, EntryPoints},
     runtime_args, RuntimeArgs, Parameter,
-    Key, URef, ContractHash, CLTyped, U256, U512, CLValue, U128};
+    Key, URef, ContractHash, CLTyped, U256, U512, CLValue, U128, ContractPackageHash};
 
+use contract_util::{current_contract, erc20};
 use event::{MarketEvent};
 mod event;
 use data::{
@@ -31,7 +32,8 @@ mod data;
 
 const OFFERS_PURSE: &str = "offers_purse";
 
-const NFT_CONTRACT_HASH_ARG: &str = "token_contract_hash";
+const NFT_CONTRACT_HASH_ARG: &str = "nft_contract_hash";
+const ERC20_CONTRACT_ARG: &str = "erc20_contract";
 const TOKEN_ID_ARG: &str = "token_id";
 const MIN_BID_PRICE_ARG: &str = "min_bid_price";
 const REDEMPTION_PRICE_ARG: &str = "redemption_price";
@@ -41,18 +43,19 @@ const ACCEPTED_OFFER_ARG: &str = "accepted_offer";
 
 
 // vvvrev:
-// add min bid price
-// add redeem price
-// add check that redeem price >= redeem price
-// add auction_duration
+// +add min bid price
+// +add redeem price
+// +add check that redeem price >= redeem price
+// +add auction_duration
+// +check auction duration
 // 2h + 2h tests = 4h
 // transfer_nft? (+4h)
 // cover: 50%
 #[no_mangle]
 pub extern "C" fn create_listing() -> () {
     let token_owner = Key::Account(runtime::get_caller());
-    let token_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
-    let token_contract_hash: ContractHash = ContractHash::from_formatted_str(&token_contract_string).unwrap();
+    let nft_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
+    let nft_contract_hash: ContractHash = ContractHash::from_formatted_str(&nft_contract_string).unwrap();
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
     let min_bid_price: U512 = runtime::get_named_arg(MIN_BID_PRICE_ARG);
     let redemption_price: U512 = runtime::get_named_arg(REDEMPTION_PRICE_ARG);
@@ -66,18 +69,16 @@ pub extern "C" fn create_listing() -> () {
         runtime::revert(Error::AuctionDurationZero);
     }
 
-    if token_owner != get_token_owner(token_contract_hash, &token_id).unwrap() {
+    if token_owner != get_token_owner(nft_contract_hash, &token_id).unwrap() {
         runtime::revert(Error::PermissionDenied);
     }
     
-    if !transfer_approved(token_contract_hash, &token_id, token_owner) {
+    if !transfer_approved(nft_contract_hash, &token_id, token_owner) {
         runtime::revert(Error::NeedsTransferApproval);
     }
-    // let str = alloc::format!("vvv-MARKET-3");
-    // runtime::print(&str);
 
     let listing = Listing {
-        token_contract: token_contract_hash,
+        nft_contract: nft_contract_hash,
         token_id: token_id.clone(),
         min_bid_price: min_bid_price,
         redemption_price: redemption_price,
@@ -85,17 +86,14 @@ pub extern "C" fn create_listing() -> () {
         seller: token_owner
     };
 
-    let listing_id: String = get_id(&token_contract_string, &token_id);
+    let listing_id: String = get_id(&nft_contract_string, &token_id); // vvvcheck
     let dictionary_uref: URef = get_listing_dictionary();
     storage::dictionary_put(dictionary_uref, &listing_id, listing);
-
-    let str = alloc::format!("vvv-MARKET-3 {min_bid_price} {redemption_price}");
-    runtime::print(&str);
 
     emit(&MarketEvent::ListingCreated {
         package: contract_package_hash(),
         seller: token_owner,
-        token_contract: token_contract_string,
+        nft_contract: nft_contract_string,
         token_id: token_id,
         listing_id: listing_id,
         min_bid_price: min_bid_price,
@@ -109,31 +107,69 @@ pub extern "C" fn create_listing() -> () {
 // cover: 50%
 #[no_mangle]
 pub fn buy_listing() -> () {
+    
     let buyer = Key::Account(runtime::get_caller());
-    let token_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
-    let token_contract_hash: ContractHash = ContractHash::from_formatted_str(&token_contract_string).unwrap();
+    let str = alloc::format!("VVV-buy_listing::buyer {:?}", buyer);
+    runtime::print(&str);
+
+
+
+    let text = format!("TEST1buy_listing buyer {:?}", buyer);
+    runtime::print(&text);
+
+    let nft_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
+
+    let erc20_contract: ContractPackageHash = runtime::get_named_arg(ERC20_CONTRACT_ARG);
+
+    // let (self_contract_package, _) = current_contract();
+    // // let self_contract_key: Key = (*self_contract_package).into();
+    let balance_before = erc20::balance_of(erc20_contract, buyer);
+    let text = format!("VVV balance_before {:?} {:?}", buyer, balance_before);
+    runtime::print(&text);
+
+    let val = erc20::name(erc20_contract, buyer);
+    let text = format!("VVV erc20 name {:?} {:?}", buyer, val);
+    runtime::print(&text);
+
+    let val = erc20::symbol(erc20_contract, buyer);
+    let text = format!("VVV erc20 symbol {:?}", val);
+    runtime::print(&text);
+
+    let balance_before = erc20::total_supply(erc20_contract, buyer);
+    let text = format!("VVV erc20 total_supply {:?}", balance_before);
+    runtime::print(&text);
+
+    let nft_contract_hash: ContractHash = ContractHash::from_formatted_str(&nft_contract_string).unwrap();
+
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
     let token_ids: Vec<U256> = token_id_to_vec(&token_id);
-    let listing_id: String = get_id(&token_contract_string, &token_id);
+
+    let listing_id: String = get_id(&nft_contract_string, &token_id);
+
     let (listing, dictionary_uref) = get_listing(&listing_id);
-    let buyer_purse: URef = runtime::get_named_arg(BUYER_PURSE_ARG);
-    let purse_balance: U512 = system::get_purse_balance(buyer_purse).unwrap();
 
-    if purse_balance < listing.redemption_price {
-        runtime::revert(Error::BalanceInsufficient);
-    }
+    // vvvfail
+    // let buyer_purse: URef = runtime::get_named_arg(BUYER_PURSE_ARG); // vvvcheck
 
-    let seller = get_token_owner(token_contract_hash, &token_id).unwrap();
+    // let purse_balance: U512 = system::get_purse_balance(buyer_purse).unwrap(); // vvvcheck
 
-    system::transfer_from_purse_to_account(
-        buyer_purse,
-        seller.into_account().unwrap_or_revert(),
-        listing.redemption_price,
-        None
-    ).unwrap_or_revert();
+    // if purse_balance < listing.redemption_price {
+    //     runtime::revert(Error::BalanceInsufficient);
+    // }
+
+    let seller = get_token_owner(nft_contract_hash, &token_id).unwrap();
+
+
+    // vvvrev
+    // system::transfer_from_purse_to_account( // vvvcheck 
+    //     buyer_purse,
+    //     seller.into_account().unwrap_or_revert(),
+    //     listing.redemption_price,
+    //     None
+    // ).unwrap_or_revert();
 
     runtime::call_contract::<()>(
-        token_contract_hash,
+        nft_contract_hash,
         "transfer_from",
         runtime_args! {
             "sender" => seller,
@@ -148,7 +184,7 @@ pub fn buy_listing() -> () {
         package: contract_package_hash(),
         seller: seller,
         buyer: buyer,
-        token_contract: token_contract_string,
+        nft_contract: nft_contract_string,
         token_id: token_id,
         min_bid_price: listing.min_bid_price,
         redemption_price: listing.redemption_price,
@@ -156,14 +192,15 @@ pub fn buy_listing() -> () {
     })
 }
 
+// vvvrev: do we need it?
 #[no_mangle]
 pub fn cancel_listing() -> () {
     let caller = Key::Account(runtime::get_caller());
-    let token_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
-    let token_contract_hash: ContractHash = ContractHash::from_formatted_str(&token_contract_string).unwrap();
+    let nft_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
+    let nft_contract_hash: ContractHash = ContractHash::from_formatted_str(&nft_contract_string).unwrap();
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
-    let listing_id: String = get_id(&token_contract_string, &token_id);
-    let seller = get_token_owner(token_contract_hash, &token_id).unwrap();
+    let listing_id: String = get_id(&nft_contract_string, &token_id);
+    let seller = get_token_owner(nft_contract_hash, &token_id).unwrap();
 
     if caller != seller {
         runtime::revert(Error::PermissionDenied);
@@ -174,7 +211,7 @@ pub fn cancel_listing() -> () {
 
     emit(&MarketEvent::ListingCanceled {
         package: contract_package_hash(),
-        token_contract: token_contract_string,
+        nft_contract: nft_contract_string,
         token_id: token_id
     })
 }
@@ -186,9 +223,9 @@ pub fn cancel_listing() -> () {
 #[no_mangle]
 pub extern "C" fn make_offer() -> () {
     let bidder = Key::Account(runtime::get_caller());
-    let token_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
+    let nft_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
-    let offers_id: String = get_id(&token_contract_string, &token_id);
+    let offers_id: String = get_id(&nft_contract_string, &token_id);
     let bidder_purse: URef = runtime::get_named_arg(BUYER_PURSE_ARG);
     let purse_balance: U512 = system::get_purse_balance(bidder_purse).unwrap();
 
@@ -209,7 +246,7 @@ pub extern "C" fn make_offer() -> () {
     emit(&MarketEvent::OfferCreated {
         package: contract_package_hash(),
         buyer: bidder,
-        token_contract: token_contract_string,
+        nft_contract: nft_contract_string,
         token_id: token_id,
         price: purse_balance
     })
@@ -220,10 +257,10 @@ pub extern "C" fn make_offer() -> () {
 #[no_mangle]
 pub extern "C" fn withdraw_offer() -> () {
     let bidder = Key::Account(runtime::get_caller());
-    let token_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
+    let nft_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
 
-    let offers_id: String = get_id(&token_contract_string, &token_id);
+    let offers_id: String = get_id(&nft_contract_string, &token_id);
 
     let (mut offers, dictionary_uref):
         (BTreeMap<Key, U512>, URef) = get_offers(&offers_id);
@@ -247,7 +284,7 @@ pub extern "C" fn withdraw_offer() -> () {
     emit(&MarketEvent::OfferWithdraw {
         package: contract_package_hash(),
         buyer: bidder,
-        token_contract: token_contract_string,
+        nft_contract: nft_contract_string,
         token_id: token_id
     })
 }
@@ -259,13 +296,13 @@ pub extern "C" fn withdraw_offer() -> () {
 #[no_mangle]
 pub extern "C" fn accept_offer() -> () {
     let seller = Key::Account(runtime::get_caller());
-    let token_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
-    let token_contract_hash: ContractHash = ContractHash::from_formatted_str(&token_contract_string).unwrap();
+    let nft_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
+    let nft_contract_hash: ContractHash = ContractHash::from_formatted_str(&nft_contract_string).unwrap();
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
     let token_ids: Vec<U256> = token_id_to_vec(&token_id);
     let offer_account_hash: String = runtime::get_named_arg(ACCEPTED_OFFER_ARG);
     let accepted_bidder_hash: Key = Key::from_formatted_str(&offer_account_hash).unwrap();
-    let offers_id: String = get_id(&token_contract_string, &token_id);
+    let offers_id: String = get_id(&nft_contract_string, &token_id);
     let offers_purse = get_purse(OFFERS_PURSE);
 
     let (mut offers, dictionary_uref):
@@ -284,7 +321,7 @@ pub extern "C" fn accept_offer() -> () {
     offers.remove(&accepted_bidder_hash);
   
     runtime::call_contract::<()>(
-        token_contract_hash,
+        nft_contract_hash,
         "transfer_from",
         runtime_args! {
             "sender" => seller,
@@ -304,14 +341,14 @@ pub extern "C" fn accept_offer() -> () {
     }
 
     offers.clear();
-    force_cancel_listing(&token_contract_string, &token_id);
+    force_cancel_listing(&nft_contract_string, &token_id);
     storage::dictionary_put(dictionary_uref, &offers_id, offers);
 
     emit(&MarketEvent::OfferAccepted {
         package: contract_package_hash(),
         seller: seller,
         buyer: accepted_bidder_hash,
-        token_contract: token_contract_string,
+        nft_contract: nft_contract_string,
         token_id: token_id,
         price: amount
     })
@@ -319,6 +356,7 @@ pub extern "C" fn accept_offer() -> () {
 
 #[no_mangle]
 pub extern "C" fn call() {
+
     let (contract_package_hash, _) = storage::create_contract_package_at_hash();
     let (contract_hash, _) =
         storage::add_contract_version(contract_package_hash, get_entry_points(), Default::default());
@@ -347,6 +385,7 @@ fn get_entry_points() -> EntryPoints {
         "buy_listing",
         vec![
             Parameter::new(NFT_CONTRACT_HASH_ARG, String::cl_type()),
+            Parameter::new(ERC20_CONTRACT_ARG, ContractPackageHash::cl_type()),
             Parameter::new(TOKEN_ID_ARG, String::cl_type()),
             Parameter::new(BUYER_PURSE_ARG, URef::cl_type())
         ],

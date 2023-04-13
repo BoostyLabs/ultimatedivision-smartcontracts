@@ -4,6 +4,7 @@ use std::{
     collections::BTreeMap
 };
 
+use casper_contract::contract_api::runtime::call_versioned_contract;
 use casper_engine_test_support::{
     DeployItemBuilder, ExecuteRequestBuilder, InMemoryWasmTestBuilder, WasmTestBuilder, ARG_AMOUNT,
     DEFAULT_ACCOUNT_INITIAL_BALANCE, DEFAULT_GENESIS_CONFIG, DEFAULT_GENESIS_CONFIG_HASH,
@@ -27,17 +28,18 @@ use casper_types::{
     runtime_args, ContractHash, ContractPackageHash, Key, Motes, PublicKey, RuntimeArgs, SecretKey,
     U256, U512, CLTyped,
 };
+// use contract_util::erc20;
 
 // use contract_util::event::ContractEvent;
 
 const CONTRACT_CEP47_BYTES: &[u8] = include_bytes!("../wasm/cep47-token.wasm");
-const CONTRACT_ERC20_BYTES: &[u8] = include_bytes!("../wasm/contract_erc20.wasm");
+const CONTRACT_ERC20_BYTES: &[u8] = include_bytes!("../wasm/erc20.wasm");
 const CONTRACT_MARKET_BYTES: &[u8] = include_bytes!("../wasm/contract-market.wasm");
 
 static DEPLOY_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 use crate::constants::{
-    TEST_ACCOUNT_BALANCE, TEST_BLOCK_TIME, TEST_ACCOUNT, PARAM_AMOUNT, PARAM_RECIPIENT, PARAM_NFT_NAME, PARAM_NFT_SYMBOL, PARAM_MARKET_CONTRACT_NAME, PARAM_NFT_CONTRACT_NAME, PARAM_NFT_PRICE, EP_MINT, EP_CREATE_LISTING, EP_APPROVE
+    TEST_ACCOUNT_BALANCE, TEST_BLOCK_TIME, TEST_ACCOUNT, PARAM_AMOUNT, PARAM_RECIPIENT, PARAM_NFT_NAME, PARAM_NFT_SYMBOL, PARAM_MARKET_CONTRACT_NAME, PARAM_NFT_CONTRACT_NAME, PARAM_NFT_PRICE, EP_MINT, EP_CREATE_LISTING, EP_APPROVE, EP_BUY_LISTING
 };
 pub type Meta = BTreeMap<String, String>;
 pub type TokenId = U256;
@@ -181,7 +183,7 @@ where
         "name" => "test token".to_string(),
         "symbol" => "TTKN",
         "decimals" => 9u8,
-        "total_supply" => U256::max_value(),
+        "total_supply" => U256::one() * 10_000_000,
     };
 
     deploy_contract(
@@ -243,6 +245,15 @@ where
     )
 }
 
+pub fn balance_of(contract: ContractPackageHash, address: Key) -> U256 {
+    let args = RuntimeArgs::try_new(|args| {
+        args.insert("address", address)?;
+        Ok(())
+    }).unwrap();
+
+    call_versioned_contract::<U256>(contract, None, "balance_of", args)
+}
+
 pub fn init_environment() -> (
     TestContext,
     ContractHash,
@@ -258,6 +269,11 @@ pub fn init_environment() -> (
         erc20_hash, 
         erc20_package_hash
     ) = deploy_erc20::<InMemoryGlobalState>(&mut context.builder, context.account.address);
+
+    let addr = Key::from_formatted_str(&context.account.address.to_formatted_string()).unwrap();
+    println!("VVVT - acc addr {:?}", addr);
+
+//    println!("VVVT erc20_balance {:?}", balance_of(erc20_package_hash, addr));
 
     let (
         cep47_hash,
@@ -429,7 +445,6 @@ pub fn mint_tokens(
     account_address: AccountHash
 ) -> DeployItem {
 
-    println!("AAAaccount_address {:?}", Key::from(account_address).to_string());
     simple_deploy_builder(account_address)
         .with_stored_session_hash(
             cep47_hash,
@@ -444,6 +459,24 @@ pub fn mint_tokens(
         .build()
 }
 
+pub fn mint_erc20(
+    cep47_hash: ContractHash,
+    account_address: AccountHash
+) -> DeployItem {
+
+    simple_deploy_builder(account_address)
+        .with_stored_session_hash(
+            cep47_hash,
+            EP_MINT,
+            runtime_args! {
+                "recipient" => Key::from(account_address),
+                "token_ids" => vec![U256::one()],
+                "token_meta" => test_meta_nft(),
+                "count" => 1
+            },
+        )
+        .build()
+}
 
 pub fn create_listing(
     market_hash: ContractHash,
@@ -454,13 +487,12 @@ pub fn create_listing(
     auction_duration: U256,
 ) -> DeployItem {
 
-    println!("AAAaccount_address {:?}", Key::from(account_address).to_string());
     simple_deploy_builder(account_address)
         .with_stored_session_hash(
             market_hash,
             EP_CREATE_LISTING,
             runtime_args! {
-                "token_contract_hash" => ["contract-", &cep47_hash.to_string()].join(""),
+                "nft_contract_hash" => ["contract-", &cep47_hash.to_string()].join(""),
                 "token_id" => "1",
                 "min_bid_price" => min_bid_price,
                 "redemption_price" => redemption_price,
@@ -469,13 +501,39 @@ pub fn create_listing(
         )
         .build()
 }
+// vvvq: contract hash vs package hash
+pub fn buy_listing(
+    market_hash: ContractHash,
+    cep47_hash: ContractHash,
+    erc20_package_hash: ContractPackageHash,
+    account_address: AccountHash
+) -> DeployItem {
+    println!("VVVT-buy_listing::account_address {:?}", account_address);
+    simple_deploy_builder(account_address)
+        .with_stored_session_hash(
+            market_hash,
+            EP_BUY_LISTING,
+            runtime_args! {
+                "nft_contract_hash" => ["contract-", &cep47_hash.to_string()].join(""),
+                "erc20_contract" => erc20_package_hash,
+                "token_id" => "1"
+            },
+        )
+        .build()
+}
+
+pub fn get_prices() -> (U256, U256, U256) {
+    let min_bid_price = U256::one() * 3;
+    let redemption_price = U256::one() * 10;
+    let auction_duration: U256 = U256::one() * 86_400;
+    (min_bid_price, redemption_price, auction_duration)
+}
 
 pub fn owner_of(
     cep47_hash: ContractHash,
     account_address: AccountHash
 ) -> DeployItem {
 
-    println!("AAAaccount_address {:?}", Key::from(account_address).to_string());
     simple_deploy_builder(account_address)
         .with_stored_session_hash(
             cep47_hash,
