@@ -161,6 +161,7 @@ pub fn buy_listing() -> () {
 
     // runtime::print(&text);
 
+    // Timofei3: Call this (same thing as on our branch contract)
     let listing: bool = interface::onchain::get_listing_by_id(self_contract_hash, token_id.clone());
     let text = format!("VVV-buy_listing::nft_contract_string6");
     runtime::print(&text);
@@ -478,6 +479,7 @@ fn get_entry_points() -> EntryPoints {
         EntryPointAccess::Public,
         EntryPointType::Contract,
     ));
+    // Timofei5 and this is endpoint I try to call from the previous place
     entry_points.add_entry_point(EntryPoint::new(
         "get_listing_by_id",
         vec![

@@ -20,6 +20,7 @@ pub fn get_listing_by_id(market_contract: ContractHash, listing_id: String) -> b
     let text = format!("VVV-buy_listing::nft_contract_string5___1");
     runtime::print(&text);
 
+    // Timofei4: HERE! Error happening here! However signature should be OK :-/
     call_contract::<()>(
         market_contract,
         "get_listing_by_id",

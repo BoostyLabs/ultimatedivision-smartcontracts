@@ -112,6 +112,8 @@ mod tests {
 
     }
 
+    // Timofei1: Run this test
+
 
     #[test]
     fn buy_listing_test() {
@@ -139,6 +141,7 @@ mod tests {
         );
         exec_deploy(&mut context, create_listing_deploy).expect_success();
 
+        // Timofei2: Error here (deep in flow, look at the contract)
         let buy_listing_deploy = buy_listing(
             market_hash, 
             cep47_hash,
