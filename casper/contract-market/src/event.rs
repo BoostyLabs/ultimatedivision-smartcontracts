@@ -1,7 +1,7 @@
 use alloc::{
     string::String
 };
-use casper_types::{ContractPackageHash, Key, U512, U128};
+use casper_types::{ContractPackageHash, Key, U128, U256};
 
 pub enum MarketEvent {
     ListingCreated {
@@ -10,8 +10,8 @@ pub enum MarketEvent {
         nft_contract: String,
         token_id: String,
         listing_id: String,
-        min_bid_price: U512,
-        redemption_price: U512,
+        min_bid_price: U256,
+        redemption_price: U256,
         auction_duration: U128,
     },
     ListingPurchased {
@@ -20,8 +20,8 @@ pub enum MarketEvent {
         buyer: Key,
         nft_contract: String,
         token_id: String,
-        min_bid_price: U512,
-        redemption_price: U512,
+        min_bid_price: U256,
+        redemption_price: U256,
         auction_duration: U128,
     },
     ListingCanceled {
@@ -34,7 +34,7 @@ pub enum MarketEvent {
         buyer: Key,
         nft_contract: String,
         token_id: String,
-        price: U512
+        price: U256
     },
     OfferWithdraw {
         package: ContractPackageHash,
@@ -48,6 +48,6 @@ pub enum MarketEvent {
         buyer: Key,
         nft_contract: String,
         token_id: String,
-        price: U512
+        price: U256
     },
 }

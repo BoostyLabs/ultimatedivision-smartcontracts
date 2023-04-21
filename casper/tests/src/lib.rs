@@ -21,6 +21,7 @@ mod tests {
     };
     use casper_execution_engine::core::{engine_state, execution};
     use casper_execution_engine::storage::global_state::StateProvider;
+    use casper_types::account::AccountHash;
     use casper_types::bytesrepr::Bytes;
     use casper_types::{runtime_args, RuntimeArgs, U256, Key, CLTyped, ApiError};
 
@@ -45,9 +46,7 @@ mod tests {
     #[test]
     fn test_deploy_all() {
         let (context, _,_,cep47_hash,_,_,_) = init_environment();
-        
         let data: U256 = query(&context.builder, cep47_hash, "total_supply");
-        println!("XXXX {:?}", data);
     }
 
     // #[test]
@@ -102,12 +101,7 @@ mod tests {
         );
         exec_deploy(&mut context, create_listing_deploy).expect_success();
 
-        // let data: Option<Key> = query_dictionary(&mut context.builder, cep47_hash, U256::one(), "owners");
-        // println!("XXXX {:?}", data.unwrap());
-        // println!("XXXX2 {:?}", market_hash);
-
         let res: BTreeMap<String, String> = query(&mut context.builder, market_hash, "latest_event");
-                println!("resresres {:?}", res);
 
         assert_eq!(res.get("event_type").unwrap(), "market_listing_created");
         assert_eq!(res.get("contract_package_hash").unwrap(), &market_package_hash.to_string());
@@ -130,8 +124,6 @@ mod tests {
 
         let (mut context, _,erc20_package_hash,cep47_hash,_,market_hash, market_package_hash) = init_environment();
 
-
-        println!("VVV erc20_package_hash1 {:?}", erc20_package_hash);
         let (min_bid_price, redemption_price, auction_duration) = get_prices();
 
         let approve_deploy = approve_token(cep47_hash, market_package_hash,  context.account.address);
@@ -151,10 +143,19 @@ mod tests {
             market_hash, 
             cep47_hash,
             erc20_package_hash,
-            context.account.address
+            context.account.address,
+            "1"
         );
         exec_deploy(&mut context, buy_listing_deploy).expect_success();
+        let res: BTreeMap<String, String> = query(&mut context.builder, market_hash, "latest_event");
 
+        assert_eq!(res.get("event_type").unwrap(), "market_listing_purchased");
+        assert_eq!(res.get("contract_package_hash").unwrap(), &market_package_hash.to_string());
+        assert_eq!(res.get("min_bid_price").unwrap(), &min_bid_price.to_string());
+        assert_eq!(res.get("auction_duration").unwrap(), &auction_duration.to_string());
+        assert_eq!(res.get("nft_contract").unwrap(), &cep47_hash.to_formatted_string());
+        assert_eq!(res.get("redemption_price").unwrap(), &redemption_price.to_string());
+        assert_eq!(res.get("buyer").unwrap().to_string(), Key::Account(context.account.address).to_string());
     }
 
 
@@ -185,12 +186,10 @@ mod tests {
             auction_duration
         );
         let error = execution_error(&mut context, create_listing_deploy);
-        println!("ERRRR {error}");
         // vvvrefactor: move codes
         let expected_error = engine_state::Error::Exec(execution::Error::Revert(ApiError::User(
             1009,
         )));
-        println!("ERRRR {expected_error}");
 
         assert_eq!(error.to_string(), expected_error.to_string());
 

@@ -117,8 +117,6 @@ pub trait CEP47<Storage: ContractStorage>: ContractContext<Storage> {
         let new_total_supply = data::total_supply()
             .checked_add(minted_tokens_count)
             .unwrap();
-        // let text = format!("vvv-cep47 {:?}", new_total_supply);
-        // runtime::print(&text);
     
         data::set_total_supply(new_total_supply);
 

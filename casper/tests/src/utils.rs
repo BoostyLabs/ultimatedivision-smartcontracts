@@ -26,7 +26,7 @@ use casper_types::{
     account::AccountHash,
     bytesrepr::{ToBytes, FromBytes},
     runtime_args, ContractHash, ContractPackageHash, Key, Motes, PublicKey, RuntimeArgs, SecretKey,
-    U256, U512, CLTyped,
+    U256, CLTyped, U512,
 };
 // use contract_util::erc20;
 
@@ -104,7 +104,7 @@ impl UserAccount {
         // We need to transfer some funds to the account so it become active
         let deploy = simple_deploy_builder(context.account.address)
             .with_transfer_args(runtime_args![
-                ARG_AMOUNT => U512::one() * TEST_ACCOUNT_BALANCE,
+                ARG_AMOUNT => U256::one() * TEST_ACCOUNT_BALANCE,
                 "target" => account.public_key.clone(),
                 "id" => Some(u64::from(unique_id))
             ])
@@ -148,8 +148,6 @@ where
     builder.exec(execute_request).commit().expect_success();
 
     let stored_account = builder.query(None, Key::Account(account), &[]).unwrap();
-
-    println!("contract_keycontract_keycontract_key {}", contract_key);    
     
     let contract_hash = stored_account
         .as_account()
@@ -233,9 +231,6 @@ where
 {
     let deploy_args = runtime_args! {};
 
-    // let (nft_address, _) = deploy_cep47(builder, account);
-    // println!("AAA nft_address {nft_address}");
-
     deploy_contract(
         builder,
         account,
@@ -271,9 +266,7 @@ pub fn init_environment() -> (
     ) = deploy_erc20::<InMemoryGlobalState>(&mut context.builder, context.account.address);
 
     let addr = Key::from_formatted_str(&context.account.address.to_formatted_string()).unwrap();
-    println!("VVVT - acc addr {:?}", addr);
-
-//    println!("VVVT erc20_balance {:?}", balance_of(erc20_package_hash, addr));
+    println!("VVV utils:::init_environment {}", addr);
 
     let (
         cep47_hash,
@@ -380,7 +373,6 @@ where
         .as_cl_value()
         .cloned()
         .unwrap();
-    println!("ZZZ {:?}", value1);
 
     let value = builder
         .query_dictionary_item(None, uref, &value.to_string())
@@ -424,8 +416,6 @@ pub fn approve_token(
     spender: ContractPackageHash,
     account_address: AccountHash
 ) -> DeployItem {
-
-    println!("approve_token {:?}", spender.into_bytes());
 
     simple_deploy_builder(account_address)
         .with_stored_session_hash(
@@ -492,7 +482,7 @@ pub fn create_listing(
             market_hash,
             EP_CREATE_LISTING,
             runtime_args! {
-                "nft_contract_hash" => ["contract-", &cep47_hash.to_string()].join(""),
+                "nft_contract_hash" => get_nft_contract_hash(cep47_hash),
                 "token_id" => "1",
                 "min_bid_price" => min_bid_price,
                 "redemption_price" => redemption_price,
@@ -506,17 +496,17 @@ pub fn buy_listing(
     market_hash: ContractHash,
     cep47_hash: ContractHash,
     erc20_package_hash: ContractPackageHash,
-    account_address: AccountHash
+    account_address: AccountHash,
+    token_id: &str
 ) -> DeployItem {
-    println!("VVVT-buy_listing::account_address {:?}", account_address);
     simple_deploy_builder(account_address)
         .with_stored_session_hash(
             market_hash,
             EP_BUY_LISTING,
             runtime_args! {
-                "nft_contract_hash" => ["contract-", &cep47_hash.to_string()].join(""),
+                "nft_contract_hash" => get_nft_contract_hash(cep47_hash),
                 "erc20_contract" => erc20_package_hash,
-                "token_id" => "1"
+                "token_id" => token_id
             },
         )
         .build()
@@ -671,4 +661,8 @@ pub fn exec_deploy(
                 .build(),
         )
         .commit()
+}
+
+fn get_nft_contract_hash(hash: ContractHash) -> String {
+    ["contract-", &hash.to_string()].join("")
 }

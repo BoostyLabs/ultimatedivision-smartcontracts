@@ -14,7 +14,7 @@ use casper_types::{
     system::CallStackElement,
     bytesrepr::ToBytes,
     runtime_args, RuntimeArgs,
-    ApiError, Key, URef, ContractHash, ContractPackageHash, CLTyped, U256, U512, U128};
+    ApiError, Key, URef, ContractHash, ContractPackageHash, CLTyped, U256, U128};
 
 use casper_types_derive::{CLTyped, FromBytes, ToBytes};
 
@@ -35,6 +35,7 @@ pub enum Error {
     NeedsTransferApproval = 1007,
     RedemptionPriceLowerThanMinBid = 1008,
     AuctionDurationZero = 1009,
+    UnexpectedTransferAmount = 1010,
 }
 
 impl From<Error> for ApiError {
@@ -49,8 +50,8 @@ pub struct Listing {
     pub seller: Key,
     pub nft_contract: ContractHash,
     pub token_id: String,
-    pub min_bid_price: U512,
-    pub redemption_price: U512,
+    pub min_bid_price: U256,
+    pub redemption_price: U256,
     pub auction_duration: U128,
     // vvvrev: add params
 }
@@ -156,10 +157,10 @@ pub fn force_cancel_listing(nft_contract: &str, token_id: &str) -> () {
     storage::dictionary_put(dictionary_uref, &listing_id, None::<Listing>);
 }
 
-pub fn get_offers(offers_id: &str) -> (BTreeMap<Key, U512>, URef) {
+pub fn get_offers(offers_id: &str) -> (BTreeMap<Key, U256>, URef) {
     let dictionary_uref = get_dictionary_uref(OFFER_DICTIONARY);
 
-    let offers: BTreeMap<Key, U512> =
+    let offers: BTreeMap<Key, U256> =
         match storage::dictionary_get(dictionary_uref, &offers_id)  {
             Ok(item) => match item {
                 None => BTreeMap::new(),

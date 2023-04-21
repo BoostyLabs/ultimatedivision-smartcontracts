@@ -7,7 +7,7 @@ use casper_engine_test_support::{
 use casper_execution_engine::core::engine_state::ExecuteRequest;
 use casper_types::{
     account::AccountHash, bytesrepr::FromBytes, runtime_args, system::mint, CLTyped, ContractHash,
-    Key, RuntimeArgs, StoredValue, U512,
+    Key, RuntimeArgs, StoredValue,
 };
 
 pub fn query<T: FromBytes + CLTyped>(
@@ -31,7 +31,7 @@ pub fn fund_account(account: &AccountHash) -> ExecuteRequest {
         .with_authorization_keys(&[*DEFAULT_ACCOUNT_ADDR])
         .with_empty_payment_bytes(runtime_args! {ARG_AMOUNT => *DEFAULT_PAYMENT})
         .with_transfer_args(runtime_args! {
-            mint::ARG_AMOUNT => U512::from(30_000_000_000_000_u64),
+            mint::ARG_AMOUNT => U256::from(30_000_000_000_000_u64),
             mint::ARG_TARGET => *account,
             mint::ARG_ID => <Option::<u64>>::None
         })
