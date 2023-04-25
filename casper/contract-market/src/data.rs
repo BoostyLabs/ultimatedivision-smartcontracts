@@ -44,8 +44,10 @@ impl From<Error> for ApiError {
     }
 }
 
+// vvvfix: remove debug
+
 // struct being used only for workaround to dictionary limitation (no remove function)
-#[derive(CLTyped, ToBytes, FromBytes)]
+#[derive(CLTyped, ToBytes, FromBytes, Debug)]
 pub struct Listing {
     pub seller: Key,
     pub nft_contract: ContractHash,

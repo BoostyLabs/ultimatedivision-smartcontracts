@@ -103,6 +103,8 @@ mod tests {
 
         let res: BTreeMap<String, String> = query(&mut context.builder, market_hash, "latest_event");
 
+        println!("VVV::create_listing_test::res {:?}", res);
+
         assert_eq!(res.get("event_type").unwrap(), "market_listing_created");
         assert_eq!(res.get("contract_package_hash").unwrap(), &market_package_hash.to_string());
         assert_eq!(res.get("min_bid_price").unwrap(), &min_bid_price.to_string());
@@ -141,7 +143,6 @@ mod tests {
         );
         exec_deploy(&mut context, create_listing_deploy).expect_success();
 
-        // Timofei2: Error here (deep in flow, look at the contract)
         let buy_listing_deploy = buy_listing(
             market_hash, 
             cep47_hash,

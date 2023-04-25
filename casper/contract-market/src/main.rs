@@ -5,7 +5,7 @@
 // `no_std` environment.
 extern crate alloc;
 
-use alloc::{collections::BTreeMap, format, str, string::String, vec, vec::Vec};
+use alloc::{collections::BTreeMap, format, str, string::{String, ToString}, vec, vec::Vec};
 
 use casper_contract::{
     contract_api::{
@@ -17,7 +17,7 @@ use casper_contract::{
 use casper_types::{
     contracts::{EntryPoint, EntryPointAccess, EntryPointType, EntryPoints},
     runtime_args, CLType, CLTyped, CLValue, ContractHash, ContractPackageHash, Key, Parameter,
-    RuntimeArgs, URef, U128, U256,
+    RuntimeArgs, URef, U128, U256, bytesrepr::ToBytes,
 };
 
 use contract_util::{current_contract, erc20};
@@ -29,7 +29,6 @@ use data::{
 };
 mod data;
 mod interface {
-    pub mod offchain;
     pub mod onchain;
 }
 
@@ -112,7 +111,6 @@ pub extern "C" fn create_listing() -> () {
 #[no_mangle]
 pub fn buy_listing() -> () {
     let text = format!("VVV-buy_listing::nft_contract_string");
-
     runtime::print(&text);
 
     let buyer = Key::Account(runtime::get_caller());
@@ -134,8 +132,6 @@ pub fn buy_listing() -> () {
 
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
     let token_ids: Vec<U256> = token_id_to_vec(&token_id);
-
-    let listing_id: String = get_id(&nft_contract_string, &token_id);
 
     // vvvhere:::: get_listing_by_id via inchain need to call
 
@@ -161,10 +157,9 @@ pub fn buy_listing() -> () {
 
     // runtime::print(&text);
 
-    // Timofei3: Call this (same thing as on our branch contract)
-    let listing: bool = interface::onchain::get_listing_by_id(self_contract_hash, token_id.clone());
-    let text = format!("VVV-buy_listing::nft_contract_string6");
-    runtime::print(&text);
+    let listing_id: String = get_id(&nft_contract_string, &token_id);
+
+    let listing: bool = interface::onchain::get_listing_by_id(self_contract_hash, listing_id);
 
     // erc20::transfer(erc20_contract, self_contract_key, listing.redemption_price);
     // let balance_after = erc20::balance_of(erc20_contract, buyer);
@@ -223,14 +218,18 @@ pub fn buy_listing() -> () {
 }
 
 #[no_mangle]
-pub fn get_listing_by_id(listing_id: U256) {
-    // let text = format!("VVV-buy_listing::nft_contract_string5_11");
-    // runtime::print(&text);
+pub fn get_listing_by_id() {
+    let listing_id: String = runtime::get_named_arg("listing_id");
+    
+    let text = format!("VVV-get_listing_by_id {:?}", listing_id.to_string());
+    runtime::print(&text);
 
-    // let (listing, dictionary_uref) = get_listing(&listing_id);
+    let (_listing, dictionary_uref) = get_listing(&listing_id);
 
-//    return true;
-    runtime::ret(CLValue::unit());
+    let text = format!("VVV-get_listing_by_id {:?}", _listing);
+    runtime::print(&text);
+
+    runtime::ret(CLValue::from_t("aaa").unwrap_or_revert());
 }
 
 // vvvrev: do we need it?
@@ -483,9 +482,9 @@ fn get_entry_points() -> EntryPoints {
     entry_points.add_entry_point(EntryPoint::new(
         "get_listing_by_id",
         vec![
-            Parameter::new("listing_id", U256::cl_type()),
+            Parameter::new("listing_id", String::cl_type()),
         ],
-        <()>::cl_type(),
+        CLType::Unit,
         EntryPointAccess::Public,
         EntryPointType::Contract,
     ));

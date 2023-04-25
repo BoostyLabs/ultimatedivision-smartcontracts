@@ -491,7 +491,7 @@ pub fn create_listing(
         )
         .build()
 }
-// vvvq: contract hash vs package hash
+
 pub fn buy_listing(
     market_hash: ContractHash,
     cep47_hash: ContractHash,
