@@ -17,7 +17,7 @@ mod tests {
         init_environment, deploy_erc20, execution_context, execution_error,
         fill_purse_on_token_contract, exec_deploy, 
          setup_context, simple_deploy_builder,
-        test_public_key, mint_tokens, query, create_listing, approve_token, owner_of, query_dictionary, buy_listing, get_prices,
+        test_public_key, mint_tokens, query, create_listing, approve_token, owner_of, query_dictionary, buy_listing, get_auction_data,
     };
     use casper_execution_engine::core::{engine_state, execution};
     use casper_execution_engine::storage::global_state::StateProvider;
@@ -85,7 +85,7 @@ mod tests {
             2. Assert success
         */
 
-        let (min_bid_price, redemption_price, auction_duration) = get_prices();
+        let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
         let (mut context, _,_,cep47_hash,_,market_hash, market_package_hash) = init_environment();
 
         let approve_deploy = approve_token(cep47_hash, market_package_hash,  context.account.address);
@@ -111,10 +111,10 @@ mod tests {
         assert_eq!(res.get("redemption_price").unwrap(), &redemption_price.to_string());
         assert_eq!(res.get("auction_duration").unwrap(), &auction_duration.to_string());
         assert_eq!(res.get("nft_contract").unwrap(), &cep47_hash.to_formatted_string());
+        // vvv: check seller
+        // vvv: check balances
 
     }
-
-    // Timofei1: Run this test
 
 
     #[test]
@@ -126,15 +126,26 @@ mod tests {
             3. Assert success
         */
 
-        let (mut context, _,erc20_package_hash,cep47_hash,_,market_hash, market_package_hash) = init_environment();
-
+        let (
+            mut context,
+             _,erc20_package_hash,
+             cep47_hash,
+             _,
+             market_hash,
+             market_package_hash
+        ) = init_environment();
         let (min_bid_price, redemption_price, auction_duration) = get_prices();
+        let token_id = "1";
 
-        let approve_deploy = approve_token(cep47_hash, market_package_hash,  context.account.address);
+        let approve_deploy = approve_token(
+            cep47_hash,
+            market_package_hash,
+             context.account.address
+        );
         exec_deploy(&mut context, approve_deploy).expect_success();
 
         let create_listing_deploy = create_listing(
-            market_hash, 
+            market_hash,
             cep47_hash,
             context.account.address,
             min_bid_price, 
@@ -148,10 +159,13 @@ mod tests {
             cep47_hash,
             erc20_package_hash,
             context.account.address,
-            "1"
+            token_id
         );
         exec_deploy(&mut context, buy_listing_deploy).expect_success();
+
         let res: BTreeMap<String, String> = query(&mut context.builder, market_hash, "latest_event");
+
+        println!("res::: {:?}", res);
 
         assert_eq!(res.get("event_type").unwrap(), "market_listing_purchased");
         assert_eq!(res.get("contract_package_hash").unwrap(), &market_package_hash.to_string());

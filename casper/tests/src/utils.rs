@@ -512,7 +512,7 @@ pub fn buy_listing(
         .build()
 }
 
-pub fn get_prices() -> (U256, U256, U256) {
+pub fn get_auction_data() -> (U256, U256, U256) {
     let min_bid_price = U256::one() * 3;
     let redemption_price = U256::one() * 10;
     let auction_duration: U256 = U256::one() * 86_400;

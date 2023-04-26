@@ -108,10 +108,9 @@ pub extern "C" fn create_listing() -> () {
 // vvvrev:
 // add canceling offer +8h
 // cover: 50%
+
 #[no_mangle]
 pub fn buy_listing() -> () {
-    let text = format!("VVV-buy_listing::nft_contract_string");
-    runtime::print(&text);
 
     let buyer = Key::Account(runtime::get_caller());
 
@@ -120,101 +119,111 @@ pub fn buy_listing() -> () {
         ContractHash::from_formatted_str(&nft_contract_string).unwrap();
 
     let erc20_contract: ContractPackageHash = runtime::get_named_arg(ERC20_CONTRACT_ARG);
-    let text = format!("VVV-buy_listing::nft_contract_string2");
-    runtime::print(&text);
 
     let (self_contract_package, self_contract_hash) = current_contract();
     let self_contract_key: Key = (self_contract_package).into();
 
     let balance_before = erc20::balance_of(erc20_contract, buyer);
-    let text = format!("VVV-buy_listing::nft_contract_string3");
-    runtime::print(&text);
 
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
     let token_ids: Vec<U256> = token_id_to_vec(&token_id);
 
-    // vvvhere:::: get_listing_by_id via inchain need to call
-
-    let text = format!("VVV-buy_listing::nft_contract_string4");
-    runtime::print(&text);
-
-    // let text = format!(
-    //     "VVV-buy_listing::nft_contract_string: {:?},\n\
-    //      erc20_contract: {:?}\n\
-    //      self_contract_key: {:?}\n\
-    //      balance_before: {:?}\n\
-    //      token_ids: {:?}\n\
-    //      listing_id: {:?}\n
-    //      listing_redemption_price: {:?}",
-    //     nft_contract_string,
-    //     erc20_contract,
-    //     self_contract_key,
-    //     balance_before,
-    //     token_ids,
-    //     listing_id,
-    //     listing.redemption_price
-    // );
-
-    // runtime::print(&text);
-
+    // vvvref: String->str?
     let listing_id: String = get_id(&nft_contract_string, &token_id);
 
-    let listing: bool = interface::onchain::get_listing_by_id(self_contract_hash, listing_id);
+    let listing: Listing = interface::onchain::get_listing_by_id(self_contract_hash, listing_id.clone());
 
-    // erc20::transfer(erc20_contract, self_contract_key, listing.redemption_price);
-    // let balance_after = erc20::balance_of(erc20_contract, buyer);
+    let text = format!(
+        "VVV-buy_listing::nft_contract_string: {:?},\n\
+         erc20_contract: {:?}\n\
+         self_contract_key: {:?}\n\
+         balance_before: {:?}\n\
+         token_ids: {:?}\n\
+         listing_redemption_price: {:?}\n\
+         listing_seller: {:?}",
+        nft_contract_string,
+        erc20_contract,
+        self_contract_key,
+        balance_before,
+        token_ids,
+        listing.redemption_price,
+        listing.seller
+    );
 
-    // let text = format!("VVV-buy_listing::nft_contract_string6");
-    // runtime::print(&text);
+    runtime::print(&text);
 
-    // let text = format!("VVV-balance_after: {:?}", balance_after);
-    // runtime::print(&text);
+
+    erc20::transfer(erc20_contract, self_contract_key, listing.redemption_price);
+
+    let balance_after = erc20::balance_of(erc20_contract, buyer);
+    let text = format!(
+        "VVV-buy_listing::balance_after: {:?},\n",
+        balance_after
+    );
+    runtime::print(&text);
+
+    let balance_after_seller = erc20::balance_of(erc20_contract, listing.seller);
+    let text = format!(
+        "VVV-buy_listing::balance_after_seller: {:?},\n",
+        balance_after_seller
+    );
+    runtime::print(&text);
+
+    // --------------------------------------------------------------------------------------------------------        
 
     // if balance_after.checked_sub(balance_before) != Some(listing.redemption_price) {
     //     revert(Error::UnexpectedTransferAmount)
     // }
 
-    // vvvfail
+    // vvvchange:
     // let buyer_purse: URef = runtime::get_named_arg(BUYER_PURSE_ARG); // vvvcheck
-
     // let purse_balance: U256 = system::get_purse_balance(buyer_purse).unwrap(); // vvvcheck
-
     // if purse_balance < listing.redemption_price {
     //     runtime::revert(Error::BalanceInsufficient);
     // }
 
-    let seller = get_token_owner(nft_contract_hash, &token_id).unwrap();
+    // --------------------------------------------------------------------------------------------------------        
 
-    // vvvrev
-    // system::transfer_from_purse_to_account( // vvvcheck
-    //     buyer_purse,
-    //     seller.into_account().unwrap_or_revert(),
-    //     listing.redemption_price,
-    //     None
-    // ).unwrap_or_revert();
-
-    runtime::call_contract::<()>(
-        nft_contract_hash,
-        "transfer_from",
-        runtime_args! {
-          "sender" => seller,
-          "recipient" => buyer,
-          "token_ids" => token_ids,
-        },
-    );
-
+    // runtime::call_contract::<()>(
+    //     nft_contract_hash,
+    //     "transfer_from",
+    //     runtime_args! {
+    //       "sender" => listing.seller,
+    //       "recipient" => buyer,
+    //       "token_ids" => token_ids,
+    //     },
+    // );
     // storage::dictionary_put(dictionary_uref, &listing_id, None::<Listing>);
 
-    // emit(&MarketEvent::ListingPurchased {
-    //     package: contract_package_hash(),
-    //     seller: seller,
-    //     buyer: buyer,
-    //     nft_contract: nft_contract_string,
-    //     token_id: token_id,
-    //     min_bid_price: listing.min_bid_price,
-    //     redemption_price: listing.redemption_price,
-    //     auction_duration: listing.auction_duration
-    // })
+    let text = format!(
+        "VVV-buy_listing::nft_contract_string222: \n\
+        package: {:?}\n\
+        seller: {:?}\n\
+        buyer: {:?}\n\
+        nft_contract: {:?}\n\
+        token_id: {:?}\n\
+        min_bid_price: {:?}\n\
+        redemption_price: {:?}\n\
+        auction_duration: {:?}\n\
+        ",
+        contract_package_hash(),
+        listing.seller,
+        buyer,
+        nft_contract_string,
+        token_id,
+        listing.min_bid_price,
+        listing.redemption_price,
+        listing.auction_duration
+    );
+    runtime::print(&text);
+
+    let text = format!(
+        "VVV-buy_listing::DATA {:?}
+        ",
+        listing
+    );
+    runtime::print(&text);
+    interface::onchain::buy_listing_confirm(self_contract_hash, listing_id.clone(), buyer);
 }
 
 #[no_mangle]
@@ -229,7 +238,38 @@ pub fn get_listing_by_id() {
     let text = format!("VVV-get_listing_by_id {:?}", _listing);
     runtime::print(&text);
 
-    runtime::ret(CLValue::from_t("aaa").unwrap_or_revert());
+    runtime::ret(CLValue::from_t(_listing).unwrap_or_revert());
+}
+
+#[no_mangle]
+pub fn buy_listing_confirm() {
+    let listing_id: String = runtime::get_named_arg("listing_id");
+    let buyer: Key = runtime::get_named_arg("buyer");
+    
+    let (_listing, dictionary_uref) = get_listing(&listing_id);
+
+
+
+    emit(&MarketEvent::ListingPurchased {
+        package: contract_package_hash(),
+        seller: _listing.seller,
+        buyer: buyer,
+        nft_contract: _listing.nft_contract.to_formatted_string(),
+        token_id: _listing.token_id,
+        min_bid_price: _listing.min_bid_price,
+        redemption_price: _listing.redemption_price,
+        auction_duration: _listing.auction_duration
+    });
+
+
+
+    // let text = format!("VVV-buy_listing_confirm {:?}", &_listing);
+    // runtime::print(&text);
+    let text = format!("VVV-buy_listing_confirm2 {:?}", buyer);
+    runtime::print(&text);
+    // let text = format!("VVV-buy_listing_confirm2 {:?}", Key::from_formatted_str(&buyer));
+    // runtime::print(&text);
+
 }
 
 // vvvrev: do we need it?
@@ -478,13 +518,22 @@ fn get_entry_points() -> EntryPoints {
         EntryPointAccess::Public,
         EntryPointType::Contract,
     ));
-    // Timofei5 and this is endpoint I try to call from the previous place
     entry_points.add_entry_point(EntryPoint::new(
         "get_listing_by_id",
         vec![
             Parameter::new("listing_id", String::cl_type()),
         ],
         CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    ));
+    entry_points.add_entry_point(EntryPoint::new(
+        "buy_listing_confirm",
+        vec![
+            Parameter::new("listing_id", String::cl_type()),
+            Parameter::new("buyer", Key::cl_type()),
+        ],
+        <()>::cl_type(),
         EntryPointAccess::Public,
         EntryPointType::Contract,
     ));

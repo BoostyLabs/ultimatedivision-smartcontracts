@@ -2,7 +2,7 @@ use alloc::{
     string::{String, ToString},
     str,
     vec, vec::Vec,
-    collections::BTreeMap
+    collections::BTreeMap, format
 };
 
 use casper_contract::{
@@ -74,14 +74,31 @@ const OFFER_DICTIONARY: &str = "offers";
 
 pub fn contract_package_hash() -> ContractPackageHash {
     let call_stacks = runtime::get_call_stack();
+
+
+
     let last_entry = call_stacks.last().unwrap_or_revert();
+
+
     let package_hash: Option<ContractPackageHash> = match last_entry {
         CallStackElement::StoredContract {
             contract_package_hash,
             contract_hash: _,
         } => Some(*contract_package_hash),
+        CallStackElement::StoredSession {
+            contract_package_hash,
+            contract_hash: _,
+            account_hash: _
+        } => Some(*contract_package_hash),
         _ => None,
     };
+    let text = format!(
+        "VVC: {:?}\n\
+        ",
+        last_entry
+    );
+    runtime::print(&text);
+
     package_hash.unwrap_or_revert()
 }
 
