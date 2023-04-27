@@ -26,7 +26,7 @@ use casper_types::{
     account::AccountHash,
     bytesrepr::{ToBytes, FromBytes},
     runtime_args, ContractHash, ContractPackageHash, Key, Motes, PublicKey, RuntimeArgs, SecretKey,
-    U256, CLTyped, U512,
+    U256, CLTyped, U512, system::{handle_payment::ARG_TARGET, mint::ARG_ID},
 };
 // use contract_util::erc20;
 
@@ -104,9 +104,9 @@ impl UserAccount {
         // We need to transfer some funds to the account so it become active
         let deploy = simple_deploy_builder(context.account.address)
             .with_transfer_args(runtime_args![
-                ARG_AMOUNT => U256::one() * TEST_ACCOUNT_BALANCE,
-                "target" => account.public_key.clone(),
-                "id" => Some(u64::from(unique_id))
+                ARG_AMOUNT => U512::one() * TEST_ACCOUNT_BALANCE,
+                ARG_TARGET => account.public_key.clone(),
+                ARG_ID => Some(u64::from(unique_id))
             ])
             .build();
         context
@@ -265,9 +265,6 @@ pub fn init_environment() -> (
         erc20_package_hash
     ) = deploy_erc20::<InMemoryGlobalState>(&mut context.builder, context.account.address);
 
-    let addr = Key::from_formatted_str(&context.account.address.to_formatted_string()).unwrap();
-    println!("VVV utils:::init_environment {}", addr);
-
     let (
         cep47_hash,
         cep47_package_hash
@@ -364,13 +361,6 @@ where
         .get(key)
         .unwrap()
         .as_uref()
-        .cloned()
-        .unwrap();
-
-        let value1 = builder
-        .query_dictionary_item(None, uref, &value.to_string())
-        .unwrap()
-        .as_cl_value()
         .cloned()
         .unwrap();
 
@@ -521,7 +511,8 @@ pub fn get_auction_data() -> (U256, U256, U256) {
 
 pub fn owner_of(
     cep47_hash: ContractHash,
-    account_address: AccountHash
+    account_address: AccountHash,
+    token_id: &str
 ) -> DeployItem {
 
     simple_deploy_builder(account_address)
@@ -529,7 +520,7 @@ pub fn owner_of(
             cep47_hash,
             "owner_of",
             runtime_args! {
-                "token_id" => "1",
+                "token_id" => token_id,
             },
         )
         .build()
@@ -592,6 +583,43 @@ pub fn owner_of(
 //     event.pop().unwrap()
 // }
 
+pub fn query_balance<S>(
+    builder: &mut WasmTestBuilder<S>,
+    contract: ContractHash,
+    address: &Key,
+) -> U256
+where
+    S: StateProvider,
+    EngineError: From<S::Error>,
+    <S as StateProvider>::Error: Into<ExecError>,
+{
+    let contract = builder
+        .query(None, Key::Hash(contract.value()), &[])
+        .unwrap()
+        .as_contract()
+        .cloned()
+        .unwrap();
+
+    let balance_uref = contract
+        .named_keys()
+        .get("balances")
+        .unwrap()
+        .as_uref()
+        .cloned()
+        .unwrap();
+
+    let balance = builder
+        .query_dictionary_item(None, balance_uref, &dictionary_key(address))
+        .unwrap()
+        .as_cl_value()
+        .cloned()
+        .unwrap()
+        .into_t::<U256>()
+        .unwrap();
+
+    balance
+}
+
 pub fn fill_purse_on_token_contract(
     context: &mut TestContext,
     token_hash: ContractHash,
@@ -616,7 +644,8 @@ pub fn fill_purse_on_token_contract(
         .commit()
         .expect_success();
 
-    let balance: U256 = query_dictionary(&mut context.builder, token_hash, recipient, &dictionary_key(&"balances"));
+    let balance = query_balance(&mut context.builder, token_hash, &recipient);
+
     assert_eq!(balance, amount);
 }
 

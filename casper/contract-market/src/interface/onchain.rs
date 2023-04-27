@@ -1,9 +1,6 @@
-use alloc::{format, string::{String, ToString}, vec::Vec};
-use casper_contract::{
-    contract_api::runtime::{self, call_contract},
-    unwrap_or_revert::UnwrapOrRevert,
-};
-use casper_types::{runtime_args, CLType, CLValue, ContractHash, RuntimeArgs, U256, Key};
+use alloc::{string::String};
+use casper_contract::contract_api::runtime::{call_contract};
+use casper_types::{runtime_args, ContractHash, Key, RuntimeArgs};
 
 use crate::data::Listing;
 

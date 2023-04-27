@@ -1,29 +1,19 @@
 pub mod constants;
 pub mod utils;
-use std::collections::BTreeMap;
 
 
 #[cfg(test)]
 mod tests {
-    use std::any::Any;
     use std::collections::{BTreeMap};
-    use std::iter::Map;
 
-    use crate::constants::{
-        TEST_BLOCK_TIME, PARAM_AMOUNT, EP_CREATE_LISTING
-    };
     use crate::utils::{
-        arbitrary_user, arbitrary_user_key,  deploy_market, deploy_cep47,
-        init_environment, deploy_erc20, execution_context, execution_error,
+        arbitrary_user, deploy_market, deploy_cep47,
+        init_environment, deploy_erc20, execution_error,
         fill_purse_on_token_contract, exec_deploy, 
-         setup_context, simple_deploy_builder,
-        test_public_key, mint_tokens, query, create_listing, approve_token, owner_of, query_dictionary, buy_listing, get_auction_data,
+         setup_context, query, create_listing, approve_token, buy_listing, get_auction_data, query_balance,
     };
     use casper_execution_engine::core::{engine_state, execution};
-    use casper_execution_engine::storage::global_state::StateProvider;
-    use casper_types::account::AccountHash;
-    use casper_types::bytesrepr::Bytes;
-    use casper_types::{runtime_args, RuntimeArgs, U256, Key, CLTyped, ApiError};
+    use casper_types::{U256, Key, ApiError};
 
     #[test]
     fn test_deploy_cep47() {
@@ -41,12 +31,6 @@ mod tests {
     fn test_deploy_market() {
         let mut context = setup_context();
         deploy_market(&mut context.builder, context.account.address);
-    }
-
-    #[test]
-    fn test_deploy_all() {
-        let (context, _,_,cep47_hash,_,_,_) = init_environment();
-        let data: U256 = query(&context.builder, cep47_hash, "total_supply");
     }
 
     // #[test]
@@ -128,13 +112,14 @@ mod tests {
 
         let (
             mut context,
-             _,erc20_package_hash,
+            erc20_hash,
+            erc20_package_hash,
              cep47_hash,
              _,
              market_hash,
              market_package_hash
         ) = init_environment();
-        let (min_bid_price, redemption_price, auction_duration) = get_prices();
+        let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
         let token_id = "1";
 
         let approve_deploy = approve_token(
@@ -143,6 +128,17 @@ mod tests {
              context.account.address
         );
         exec_deploy(&mut context, approve_deploy).expect_success();
+
+        let buyer = arbitrary_user(&mut context);
+        fill_purse_on_token_contract(
+            &mut context,
+            erc20_hash,
+            U256::one() * 10000,
+            Key::from(buyer.address),
+        );
+
+        let seller_balance_before = query_balance(&mut context.builder, erc20_hash, &Key::from(context.account.address));
+        let buyer_balance_before = query_balance(&mut context.builder, erc20_hash, &Key::from(buyer.address));
 
         let create_listing_deploy = create_listing(
             market_hash,
@@ -158,14 +154,15 @@ mod tests {
             market_hash, 
             cep47_hash,
             erc20_package_hash,
-            context.account.address,
+            buyer.address,
             token_id
         );
         exec_deploy(&mut context, buy_listing_deploy).expect_success();
 
+        let seller_balance_after = query_balance(&mut context.builder, erc20_hash, &Key::from(context.account.address));
+        let buyer_balance_after = query_balance(&mut context.builder, erc20_hash, &Key::from(buyer.address));
+        
         let res: BTreeMap<String, String> = query(&mut context.builder, market_hash, "latest_event");
-
-        println!("res::: {:?}", res);
 
         assert_eq!(res.get("event_type").unwrap(), "market_listing_purchased");
         assert_eq!(res.get("contract_package_hash").unwrap(), &market_package_hash.to_string());
@@ -173,7 +170,15 @@ mod tests {
         assert_eq!(res.get("auction_duration").unwrap(), &auction_duration.to_string());
         assert_eq!(res.get("nft_contract").unwrap(), &cep47_hash.to_formatted_string());
         assert_eq!(res.get("redemption_price").unwrap(), &redemption_price.to_string());
-        assert_eq!(res.get("buyer").unwrap().to_string(), Key::Account(context.account.address).to_string());
+        assert_eq!(res.get("buyer").unwrap().to_string(), Key::Account(buyer.address).to_string());
+        assert_eq!(
+            &seller_balance_after.checked_sub(seller_balance_before).unwrap().to_string(), 
+            res.get("redemption_price").unwrap()
+        );
+        assert_eq!(
+            &buyer_balance_before.checked_sub(buyer_balance_after).unwrap().to_string(), 
+            res.get("redemption_price").unwrap()
+        );
     }
 
 

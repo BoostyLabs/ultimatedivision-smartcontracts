@@ -1,9 +1,5 @@
 #![allow(non_snake_case)]
-use casper_types::{U256};
 pub const TEST_BLOCK_TIME: u64 = 1672071121;
-pub(crate) fn TEST_AMOUNT() -> U256 {
-    U256::one() * 1_000_000_000_000u64
-}
 
 
 pub(crate) const TEST_ACCOUNT_BALANCE: u64 = 10_000_000_000_000u64;

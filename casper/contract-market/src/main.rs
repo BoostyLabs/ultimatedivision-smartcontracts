@@ -10,14 +10,14 @@ use alloc::{collections::BTreeMap, format, str, string::{String, ToString}, vec,
 use casper_contract::{
     contract_api::{
         runtime::{self, revert},
-        storage, system,
+        storage,
     },
     unwrap_or_revert::UnwrapOrRevert,
 };
 use casper_types::{
     contracts::{EntryPoint, EntryPointAccess, EntryPointType, EntryPoints},
     runtime_args, CLType, CLTyped, CLValue, ContractHash, ContractPackageHash, Key, Parameter,
-    RuntimeArgs, URef, U128, U256, bytesrepr::ToBytes,
+    RuntimeArgs, URef, U128, U256,
 };
 
 use contract_util::{current_contract, erc20};
@@ -25,19 +25,16 @@ use event::MarketEvent;
 mod event;
 use data::{
     contract_package_hash, emit, force_cancel_listing, get_id, get_listing, get_listing_dictionary,
-    get_offers, get_purse, get_token_owner, token_id_to_vec, transfer_approved, Error, Listing,
+    get_offers, get_token_owner, token_id_to_vec, transfer_approved, Error, Listing,
 };
 mod data;
 mod interface {
     pub mod onchain;
 }
 
-const OFFERS_PURSE: &str = "offers_purse";
-
 const NFT_CONTRACT_HASH_ARG: &str = "nft_contract_hash";
 const ERC20_CONTRACT_ARG: &str = "erc20_contract";
 const TOKEN_ID_ARG: &str = "token_id";
-const LISTING_ID_ARG: &str = "listing_id";
 const MIN_BID_PRICE_ARG: &str = "min_bid_price";
 const REDEMPTION_PRICE_ARG: &str = "redemption_price";
 const AUCTION_DURATION_ARG: &str = "auction_duration";
@@ -115,15 +112,10 @@ pub fn buy_listing() -> () {
     let buyer = Key::Account(runtime::get_caller());
 
     let nft_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
-    let nft_contract_hash: ContractHash =
-        ContractHash::from_formatted_str(&nft_contract_string).unwrap();
 
     let erc20_contract: ContractPackageHash = runtime::get_named_arg(ERC20_CONTRACT_ARG);
 
-    let (self_contract_package, self_contract_hash) = current_contract();
-    let self_contract_key: Key = (self_contract_package).into();
-
-    let balance_before = erc20::balance_of(erc20_contract, buyer);
+    let (_, self_contract_hash) = current_contract();
 
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
     let token_ids: Vec<U256> = token_id_to_vec(&token_id);
@@ -131,98 +123,75 @@ pub fn buy_listing() -> () {
     // vvvref: String->str?
     let listing_id: String = get_id(&nft_contract_string, &token_id);
 
-    let listing: Listing = interface::onchain::get_listing_by_id(self_contract_hash, listing_id.clone());
+    let listing = interface::onchain::get_listing_by_id(self_contract_hash, listing_id.clone());
 
-    let text = format!(
-        "VVV-buy_listing::nft_contract_string: {:?},\n\
-         erc20_contract: {:?}\n\
-         self_contract_key: {:?}\n\
-         balance_before: {:?}\n\
-         token_ids: {:?}\n\
-         listing_redemption_price: {:?}\n\
-         listing_seller: {:?}",
-        nft_contract_string,
-        erc20_contract,
-        self_contract_key,
-        balance_before,
-        token_ids,
-        listing.redemption_price,
-        listing.seller
-    );
+    let balance_before_seller = erc20::balance_of(erc20_contract, listing.seller);
 
-    runtime::print(&text);
+    // let text = format!(
+    //     "VVV-buy_listing::nft_contract_string: {:?},\n\
+    //      erc20_contract: {:?}\n\
+    //      self_contract_key: {:?}\n\
+    //      balance_before: {:?}\n\
+    //      token_ids: {:?}\n\
+    //      listing_redemption_price: {:?}\n\
+    //      listing_seller: {:?}",
+    //     nft_contract_string,
+    //     erc20_contract,
+    //     self_contract_key,
+    //     balance_before,
+    //     token_ids,
+    //     listing.redemption_price,
+    //     listing.seller
+    // );
+
+    // runtime::print(&text);
 
 
-    erc20::transfer(erc20_contract, self_contract_key, listing.redemption_price);
+    let buyer_balance = erc20::balance_of(erc20_contract, buyer);
+    if buyer_balance < listing.redemption_price {
+        runtime::revert(Error::BalanceInsufficient);
+    }
 
-    let balance_after = erc20::balance_of(erc20_contract, buyer);
-    let text = format!(
-        "VVV-buy_listing::balance_after: {:?},\n",
-        balance_after
-    );
-    runtime::print(&text);
+    erc20::transfer(erc20_contract, listing.seller, listing.redemption_price);
 
     let balance_after_seller = erc20::balance_of(erc20_contract, listing.seller);
-    let text = format!(
-        "VVV-buy_listing::balance_after_seller: {:?},\n",
-        balance_after_seller
-    );
+
+    if balance_after_seller.checked_sub(balance_before_seller) != Some(listing.redemption_price) {
+        revert(Error::UnexpectedTransferAmount)
+    }
+
+    let text = format!("2token_id: {:?}, 2token_owner: {:?}", token_ids, listing.seller);
     runtime::print(&text);
 
-    // --------------------------------------------------------------------------------------------------------        
 
-    // if balance_after.checked_sub(balance_before) != Some(listing.redemption_price) {
-    //     revert(Error::UnexpectedTransferAmount)
-    // }
-
-    // vvvchange:
-    // let buyer_purse: URef = runtime::get_named_arg(BUYER_PURSE_ARG); // vvvcheck
-    // let purse_balance: U256 = system::get_purse_balance(buyer_purse).unwrap(); // vvvcheck
-    // if purse_balance < listing.redemption_price {
-    //     runtime::revert(Error::BalanceInsufficient);
-    // }
-
-    // --------------------------------------------------------------------------------------------------------        
-
-    // runtime::call_contract::<()>(
-    //     nft_contract_hash,
-    //     "transfer_from",
-    //     runtime_args! {
-    //       "sender" => listing.seller,
-    //       "recipient" => buyer,
-    //       "token_ids" => token_ids,
-    //     },
+    // let text = format!(
+    //     "VVV-buy_listing::nft_contract_string222: \n\
+    //     package: {:?}\n\
+    //     seller: {:?}\n\
+    //     buyer: {:?}\n\
+    //     nft_contract: {:?}\n\
+    //     token_id: {:?}\n\
+    //     min_bid_price: {:?}\n\
+    //     redemption_price: {:?}\n\
+    //     auction_duration: {:?}\n\
+    //     ",
+    //     contract_package_hash(),
+    //     listing.seller,
+    //     buyer,
+    //     nft_contract_string,
+    //     token_id,
+    //     listing.min_bid_price,
+    //     listing.redemption_price,
+    //     listing.auction_duration
     // );
-    // storage::dictionary_put(dictionary_uref, &listing_id, None::<Listing>);
+    // runtime::print(&text);
 
-    let text = format!(
-        "VVV-buy_listing::nft_contract_string222: \n\
-        package: {:?}\n\
-        seller: {:?}\n\
-        buyer: {:?}\n\
-        nft_contract: {:?}\n\
-        token_id: {:?}\n\
-        min_bid_price: {:?}\n\
-        redemption_price: {:?}\n\
-        auction_duration: {:?}\n\
-        ",
-        contract_package_hash(),
-        listing.seller,
-        buyer,
-        nft_contract_string,
-        token_id,
-        listing.min_bid_price,
-        listing.redemption_price,
-        listing.auction_duration
-    );
-    runtime::print(&text);
-
-    let text = format!(
-        "VVV-buy_listing::DATA {:?}
-        ",
-        listing
-    );
-    runtime::print(&text);
+    // let text = format!(
+    //     "VVV-buy_listing::DATA {:?}
+    //     ",
+    //     listing
+    // );
+    // runtime::print(&text);
     interface::onchain::buy_listing_confirm(self_contract_hash, listing_id.clone(), buyer);
 }
 
@@ -233,7 +202,7 @@ pub fn get_listing_by_id() {
     let text = format!("VVV-get_listing_by_id {:?}", listing_id.to_string());
     runtime::print(&text);
 
-    let (_listing, dictionary_uref) = get_listing(&listing_id);
+    let (_listing, _) = get_listing(&listing_id);
 
     let text = format!("VVV-get_listing_by_id {:?}", _listing);
     runtime::print(&text);
@@ -248,7 +217,17 @@ pub fn buy_listing_confirm() {
     
     let (_listing, dictionary_uref) = get_listing(&listing_id);
 
-
+    let token_ids: Vec<U256> = token_id_to_vec(&_listing.token_id);
+    runtime::call_contract::<()>(
+        _listing.nft_contract,
+        "transfer_from",
+        runtime_args! {
+          "sender" => _listing.seller,
+          "recipient" => buyer,
+          "token_ids" => token_ids,
+        },
+    );
+    storage::dictionary_put(dictionary_uref, &listing_id, None::<Listing>);
 
     emit(&MarketEvent::ListingPurchased {
         package: contract_package_hash(),
@@ -260,7 +239,6 @@ pub fn buy_listing_confirm() {
         redemption_price: _listing.redemption_price,
         auction_duration: _listing.auction_duration
     });
-
 
 
     // let text = format!("VVV-buy_listing_confirm {:?}", &_listing);
@@ -307,12 +285,9 @@ pub extern "C" fn make_offer() -> () {
     let nft_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
     let offers_id: String = get_id(&nft_contract_string, &token_id);
-    let bidder_purse: URef = runtime::get_named_arg(BUYER_PURSE_ARG);
     let purse_balance: U256 = U256::one(); // system::get_purse_balance(bidder_purse).unwrap();
 
     let (mut offers, dictionary_uref): (BTreeMap<Key, U256>, URef) = get_offers(&offers_id);
-
-    let offers_purse = get_purse(OFFERS_PURSE);
 
     // TODO: rebalance current offer instead of error
     match offers.get(&bidder) {
@@ -343,13 +318,6 @@ pub extern "C" fn withdraw_offer() -> () {
     let offers_id: String = get_id(&nft_contract_string, &token_id);
 
     let (mut offers, dictionary_uref): (BTreeMap<Key, U256>, URef) = get_offers(&offers_id);
-
-    let amount: U256 = offers
-        .get(&bidder)
-        .unwrap_or_revert_with(Error::NoMatchingOffer)
-        .clone();
-
-    let offers_purse = get_purse(OFFERS_PURSE);
 
     // system::transfer_from_purse_to_account(
     //     offers_purse,
@@ -384,7 +352,6 @@ pub extern "C" fn accept_offer() -> () {
     let offer_account_hash: String = runtime::get_named_arg(ACCEPTED_OFFER_ARG);
     let accepted_bidder_hash: Key = Key::from_formatted_str(&offer_account_hash).unwrap();
     let offers_id: String = get_id(&nft_contract_string, &token_id);
-    let offers_purse = get_purse(OFFERS_PURSE);
 
     let (mut offers, dictionary_uref): (BTreeMap<Key, U256>, URef) = get_offers(&offers_id);
 
