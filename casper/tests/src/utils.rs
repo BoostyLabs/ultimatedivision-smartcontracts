@@ -277,7 +277,8 @@ pub fn init_environment() -> (
 
     let mint_deploy = mint_tokens(
         cep47_hash, 
-        context.account.address
+        context.account.address,
+        vec![U256::one()]
     );
     exec_deploy(&mut context, mint_deploy).expect_success();
 
@@ -404,7 +405,8 @@ where
 pub fn approve_token(
     cep47_hash: ContractHash,
     spender: ContractPackageHash,
-    account_address: AccountHash
+    account_address: AccountHash,
+    token_ids: Vec<U256>
 ) -> DeployItem {
 
     simple_deploy_builder(account_address)
@@ -413,7 +415,7 @@ pub fn approve_token(
             EP_APPROVE,
             runtime_args! {
                 "spender" => Key::from(spender),
-                "token_ids" => vec![U256::one()],
+                "token_ids" => token_ids,
             },
         )
         .build()
@@ -422,7 +424,8 @@ pub fn approve_token(
 
 pub fn mint_tokens(
     cep47_hash: ContractHash,
-    account_address: AccountHash
+    account_address: AccountHash,
+    token_ids: Vec<U256>
 ) -> DeployItem {
 
     simple_deploy_builder(account_address)
@@ -431,7 +434,7 @@ pub fn mint_tokens(
             EP_MINT,
             runtime_args! {
                 "recipient" => Key::from(account_address),
-                "token_ids" => vec![U256::one()],
+                "token_ids" => token_ids,
                 "token_meta" => test_meta_nft(),
                 "count" => 1
             },
@@ -465,6 +468,7 @@ pub fn create_listing(
     min_bid_price: U256,
     redemption_price: U256,
     auction_duration: U256,
+    token_id: &str
 ) -> DeployItem {
 
     simple_deploy_builder(account_address)
@@ -473,7 +477,7 @@ pub fn create_listing(
             EP_CREATE_LISTING,
             runtime_args! {
                 "nft_contract_hash" => get_nft_contract_hash(cep47_hash),
-                "token_id" => "1",
+                "token_id" => token_id,
                 "min_bid_price" => min_bid_price,
                 "redemption_price" => redemption_price,
                 "auction_duration" => auction_duration,
@@ -610,6 +614,43 @@ where
 
     let balance = builder
         .query_dictionary_item(None, balance_uref, &dictionary_key(address))
+        .unwrap()
+        .as_cl_value()
+        .cloned()
+        .unwrap()
+        .into_t::<U256>()
+        .unwrap();
+
+    balance
+}
+
+pub fn query_listing<S>(
+    builder: &mut WasmTestBuilder<S>,
+    contract: ContractHash,
+    listing_id: &String,
+) -> U256
+where
+    S: StateProvider,
+    EngineError: From<S::Error>,
+    <S as StateProvider>::Error: Into<ExecError>,
+{
+    let contract = builder
+        .query(None, Key::Hash(contract.value()), &[])
+        .unwrap()
+        .as_contract()
+        .cloned()
+        .unwrap();
+
+    let balance_uref = contract
+        .named_keys()
+        .get("listings")
+        .unwrap()
+        .as_uref()
+        .cloned()
+        .unwrap();
+
+    let balance = builder
+        .query_dictionary_item(None, balance_uref, &dictionary_key(listing_id))
         .unwrap()
         .as_cl_value()
         .cloned()

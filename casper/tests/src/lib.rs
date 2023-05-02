@@ -10,7 +10,7 @@ mod tests {
         arbitrary_user, deploy_market, deploy_cep47,
         init_environment, deploy_erc20, execution_error,
         fill_purse_on_token_contract, exec_deploy, 
-         setup_context, query, create_listing, approve_token, buy_listing, get_auction_data, query_balance,
+         setup_context, query, create_listing, approve_token, buy_listing, get_auction_data, query_balance, mint_tokens
     };
     use casper_execution_engine::core::{engine_state, execution};
     use casper_types::{U256, Key, ApiError};
@@ -71,8 +71,11 @@ mod tests {
 
         let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
         let (mut context, _,_,cep47_hash,_,market_hash, market_package_hash) = init_environment();
+        let token_id = "1";
 
-        let approve_deploy = approve_token(cep47_hash, market_package_hash,  context.account.address);
+        let approve_deploy = approve_token(
+            cep47_hash, market_package_hash,  context.account.address, vec![U256::one()]
+        );
         exec_deploy(&mut context, approve_deploy).expect_success();
 
         let create_listing_deploy = create_listing(
@@ -81,7 +84,8 @@ mod tests {
             context.account.address,
             min_bid_price, 
             redemption_price,
-            auction_duration
+            auction_duration,
+            token_id
         );
         exec_deploy(&mut context, create_listing_deploy).expect_success();
 
@@ -95,8 +99,8 @@ mod tests {
         assert_eq!(res.get("redemption_price").unwrap(), &redemption_price.to_string());
         assert_eq!(res.get("auction_duration").unwrap(), &auction_duration.to_string());
         assert_eq!(res.get("nft_contract").unwrap(), &cep47_hash.to_formatted_string());
-        // vvv: check seller
-        // vvv: check balances
+        assert_eq!(res.get("seller").unwrap(), &Key::Account(context.account.address).to_string());
+       // vvvrev: check nft balances
 
     }
 
@@ -125,7 +129,8 @@ mod tests {
         let approve_deploy = approve_token(
             cep47_hash,
             market_package_hash,
-             context.account.address
+            context.account.address,
+            vec![U256::one()]
         );
         exec_deploy(&mut context, approve_deploy).expect_success();
 
@@ -146,7 +151,8 @@ mod tests {
             context.account.address,
             min_bid_price, 
             redemption_price,
-            auction_duration
+            auction_duration,
+            token_id
         );
         exec_deploy(&mut context, create_listing_deploy).expect_success();
 
@@ -183,21 +189,24 @@ mod tests {
 
 
 
-    // NEGATIVE CASES:
+    // --------------------------------------------------- NEGATIVE CASES: ----------------------------------------------------  //
 
     #[test]
     fn create_listing_test_invalid_auction_time() {
         /*
             Scenario:
-            1. Call "create listing" entrypoint to create a listing
-            2. Assert success
+            1. Call "create listing" entrypoint to create a listing with invalid duration
+            2. Assert fail
         */
 
         let min_bid_price: U256 = U256::one() * 3;
         let redemption_price: U256 = U256::one() * 10;
         let auction_duration: U256 = U256::zero();
         let (mut context, _,_,cep47_hash,_,market_hash, market_package_hash) = init_environment();
-        let approve_deploy = approve_token(cep47_hash, market_package_hash,  context.account.address);
+        let token_id = "1";
+        let approve_deploy = approve_token(
+            cep47_hash, market_package_hash,  context.account.address, vec![U256::one()]
+        );
         exec_deploy(&mut context, approve_deploy).expect_success();
 
         let create_listing_deploy = create_listing(
@@ -206,7 +215,8 @@ mod tests {
             context.account.address,
             min_bid_price, 
             redemption_price,
-            auction_duration
+            auction_duration,
+            token_id
         );
         let error = execution_error(&mut context, create_listing_deploy);
         // vvvrefactor: move codes
@@ -222,15 +232,18 @@ mod tests {
     fn create_listing_test_invalid_redemption_price() {
         /*
             Scenario:
-            1. Call "create listing" entrypoint to create a listing
-            2. Assert success
+            1. Call "create listing" entrypoint to create a listing with invalid redemption price
+            2. Assert fail
         */
 
         let min_bid_price: U256 = U256::one() * 3;
         let redemption_price: U256 = U256::one() * 3;
         let auction_duration: U256 = U256::zero() * 86_400;
         let (mut context, _,_,cep47_hash,_,market_hash, market_package_hash) = init_environment();
-        let approve_deploy = approve_token(cep47_hash, market_package_hash,  context.account.address);
+        let token_id = "1";
+        let approve_deploy = approve_token(
+            cep47_hash, market_package_hash,  context.account.address, vec![U256::one()]
+        );
         exec_deploy(&mut context, approve_deploy).expect_success();
 
         let create_listing_deploy = create_listing(
@@ -239,12 +252,190 @@ mod tests {
             context.account.address,
             min_bid_price, 
             redemption_price,
-            auction_duration
+            auction_duration,
+            token_id
         );
         let error = execution_error(&mut context, create_listing_deploy);
         // vvvrefactor: move codes
         let expected_error = engine_state::Error::Exec(execution::Error::Revert(ApiError::User(
             1008,
+        )));
+        assert_eq!(error.to_string(), expected_error.to_string());
+
+    }
+
+    #[test]
+    fn create_listing_test_not_approved_token() {
+        /*
+            Scenario:
+            1. Call "create listing" entrypoint to create a listing without token approval
+            2. Assert fail
+        */
+
+        let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
+        let (mut context, _,_,cep47_hash,_,market_hash, market_package_hash) = init_environment();
+        let token_id = "1";
+
+        let create_listing_deploy = create_listing(
+            market_hash, 
+            cep47_hash,
+            context.account.address,
+            min_bid_price, 
+            redemption_price,
+            auction_duration,
+            token_id
+        );
+        let error = execution_error(&mut context, create_listing_deploy);
+        // vvvrefactor: move codes
+        let expected_error = engine_state::Error::Exec(execution::Error::Revert(ApiError::User(
+            1007,
+        )));
+        assert_eq!(error.to_string(), expected_error.to_string());
+
+    }
+
+    #[test]
+    fn create_listing_test_not_owner() {
+
+        /*
+            Scenario:
+            1. Call "create listing" entrypoint to create a listing with token id which we don't own
+            2. Assert fail
+        */
+
+        let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
+        let (mut context, _,_,cep47_hash,_,market_hash, market_package_hash) = init_environment();
+
+        let invalid_token_id = "2";
+
+
+        let user = arbitrary_user(&mut context);
+
+        let mint_deploy = mint_tokens(
+            cep47_hash, 
+            user.address,
+            vec![U256::one() * 2]
+        );
+        exec_deploy(&mut context, mint_deploy).expect_success();
+    
+        let approve_deploy = approve_token(
+            cep47_hash, market_package_hash,  context.account.address, vec![U256::one()]
+        );
+        exec_deploy(&mut context, approve_deploy).expect_success();
+
+        let create_listing_deploy = create_listing(
+            market_hash, 
+            cep47_hash,
+            context.account.address,
+            min_bid_price, 
+            redemption_price,
+            auction_duration,
+            invalid_token_id
+        );
+        let error = execution_error(&mut context, create_listing_deploy);
+        // vvvrefactor: move codes
+        let expected_error = engine_state::Error::Exec(execution::Error::Revert(ApiError::User(
+            1003,
+        )));
+        assert_eq!(error.to_string(), expected_error.to_string());
+
+    }
+
+    #[test]
+    fn buy_listing_test_invalid_id() {
+        /*
+            Scenario:
+            1. Call "buy listing" entrypoint to create a listing with ionvalid listing id
+            2. Assert fail
+        */
+
+        let (
+            mut context,
+            _,
+            erc20_package_hash,
+             cep47_hash,
+             _,
+             market_hash,
+             _
+        ) = init_environment();
+        let invalid_token_id = "333";
+
+        let buy_listing_deploy = buy_listing(
+            market_hash, 
+            cep47_hash,
+            erc20_package_hash,
+            context.account.address,
+            invalid_token_id
+        );
+        let error = execution_error(&mut context, buy_listing_deploy);
+        // vvvrefactor: move codes
+        let expected_error = engine_state::Error::Exec(execution::Error::Revert(ApiError::User(
+            1000,
+        )));
+        assert_eq!(error.to_string(), expected_error.to_string());
+
+    }
+
+    #[test]
+    fn buy_listing_test_invalid_price() {
+        /*
+            Scenario:
+            1. Call "create listing"
+            2. Call "buy listing" entrypoint with having insufficient balance
+            3. Assert fail
+        */
+
+        let (
+            mut context,
+            erc20_hash,
+            erc20_package_hash,
+             cep47_hash,
+             _,
+             market_hash,
+             market_package_hash
+        ) = init_environment();
+        let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
+        let token_id = "1";
+
+        let approve_deploy = approve_token(
+            cep47_hash,
+            market_package_hash,
+            context.account.address,
+            vec![U256::one()]
+        );
+        exec_deploy(&mut context, approve_deploy).expect_success();
+
+        let buyer = arbitrary_user(&mut context);
+        fill_purse_on_token_contract(
+            &mut context,
+            erc20_hash,
+            U256::one() * 3,
+            Key::from(buyer.address),
+        );
+
+        let create_listing_deploy = create_listing(
+            market_hash,
+            cep47_hash,
+            context.account.address,
+            min_bid_price, 
+            redemption_price,
+            auction_duration,
+            token_id
+        );
+        exec_deploy(&mut context, create_listing_deploy).expect_success();
+
+        let buy_listing_deploy = buy_listing(
+            market_hash, 
+            cep47_hash,
+            erc20_package_hash,
+            buyer.address,
+            token_id
+        );
+
+        let error = execution_error(&mut context, buy_listing_deploy);
+        // vvvrefactor: move codes
+        let expected_error = engine_state::Error::Exec(execution::Error::Revert(ApiError::User(
+            1002,
         )));
         assert_eq!(error.to_string(), expected_error.to_string());
 
