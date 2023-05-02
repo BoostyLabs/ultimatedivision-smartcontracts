@@ -34,8 +34,9 @@ pub enum Error {
     OfferPurseRetrieval = 1006,
     NeedsTransferApproval = 1007,
     RedemptionPriceLowerThanMinBid = 1008,
-    AuctionDurationZero = 1009,
+    AuctionInvalidDuration = 1009,
     UnexpectedTransferAmount = 1010,
+    OfferPriceLessThanMinBid = 1011,
 }
 
 impl From<Error> for ApiError {
@@ -252,18 +253,6 @@ pub fn emit(event: &MarketEvent) {
             param.insert(REDEMPTION_PRICE, redemption_price.to_string());
             param.insert(AUCTION_DURATION, auction_duration.to_string());
             param.insert(EVENT_TYPE, "market_listing_purchased".to_string());
-            param
-        }
-        MarketEvent::ListingCanceled {
-            package,
-            nft_contract,
-            token_id
-        } => {
-            let mut param = BTreeMap::new();
-            param.insert(CONTRACT_PACKAGE_HASH, package.to_string());
-            param.insert(NFT_CONTRACT, nft_contract.to_string());
-            param.insert(TOKEN_ID, token_id.to_string());
-            param.insert(EVENT_TYPE, "market_listing_canceled".to_string());
             param
         }
         MarketEvent::OfferCreated {

@@ -24,11 +24,6 @@ pub enum MarketEvent {
         redemption_price: U256,
         auction_duration: U128,
     },
-    ListingCanceled {
-        package: ContractPackageHash,
-        nft_contract: String,
-        token_id: String
-    },
     OfferCreated {
         package: ContractPackageHash,
         buyer: Key,
