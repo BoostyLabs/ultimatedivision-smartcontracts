@@ -209,6 +209,14 @@ pub fn get_purse(purse_name: &str) -> URef {
     return purse;
 }
 
+pub fn remove_offer(nft_contract_string: &String, token_id: &String, bidder: &Key) {
+    let offers_id: String = get_id(nft_contract_string, token_id);
+    let (mut offers, dictionary_uref): (BTreeMap<Key, U256>, URef) = get_offers(&offers_id);
+    offers.remove(&bidder);
+    storage::dictionary_put(dictionary_uref, &offers_id, offers);
+    // vvvrev: transfer money back to the &bidder 
+}
+
 pub fn emit(event: &MarketEvent) {
     let push_event = match event {
         MarketEvent::ListingCreated {

@@ -25,7 +25,7 @@ use event::MarketEvent;
 mod event;
 use data::{
     contract_package_hash, emit, force_cancel_listing, get_id, get_listing, get_listing_dictionary,
-    get_offers, get_token_owner, token_id_to_vec, transfer_approved, Error, Listing,
+    get_offers, get_token_owner, token_id_to_vec, transfer_approved, Error, Listing, remove_offer,
 };
 mod data;
 mod interface {
@@ -199,8 +199,10 @@ pub extern "C" fn make_offer() -> () {
 
     let listing_id: &str = &(get_id(&nft_contract_string, &token_id).to_owned())[..];
     let (_listing, _) = get_listing(&listing_id);
+    let erc20_contract: ContractHash = runtime::get_named_arg(ERC20_CONTRACT_ARG);
 
-    let text = format!("VVV-make_offer {:?}", _listing);
+
+    let text = format!("VVV-make_offer {:?}", erc20_contract);
     runtime::print(&text);
 
 
@@ -211,9 +213,13 @@ pub extern "C" fn make_offer() -> () {
     }
     // TODO: rebalance current offer instead of error
     match offers.get(&bidder) {
-        Some(_) => runtime::revert(Error::OfferExists),
+        Some(offer) => {
+            remove_offer(&nft_contract_string, &token_id, &bidder);
+        },
         None => (),
     }
+
+    let (mut offers, dictionary_uref): (BTreeMap<Key, U256>, URef) = get_offers(&offers_id);
 
     offers.insert(bidder, offer_price);
     // vvvrev:
@@ -236,9 +242,7 @@ pub extern "C" fn withdraw_offer() -> () {
     let nft_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
 
-    let offers_id: String = get_id(&nft_contract_string, &token_id);
-
-    let (mut offers, dictionary_uref): (BTreeMap<Key, U256>, URef) = get_offers(&offers_id);
+    remove_offer(&nft_contract_string, &token_id, &bidder);
 
     // system::transfer_from_purse_to_account(
     //     offers_purse,
@@ -246,9 +250,6 @@ pub extern "C" fn withdraw_offer() -> () {
     //     amount.clone(),
     //     None
     // ).unwrap_or_revert();
-
-    offers.remove(&bidder);
-    storage::dictionary_put(dictionary_uref, &offers_id, offers);
 
     emit(&MarketEvent::OfferWithdraw {
         package: contract_package_hash(),
@@ -368,6 +369,7 @@ fn get_entry_points() -> EntryPoints {
         "make_offer",
         vec![
             Parameter::new(NFT_CONTRACT_HASH_ARG, String::cl_type()),
+            Parameter::new(ERC20_CONTRACT_ARG, ContractHash::cl_type()),
             Parameter::new(TOKEN_ID_ARG, String::cl_type()),
             Parameter::new(OFFER_PRICE_ARG, U256::cl_type()),
         ],
@@ -419,3 +421,6 @@ fn get_entry_points() -> EntryPoints {
 
     entry_points
 }
+
+// vvvrev: add commission logic
+// cancel offer

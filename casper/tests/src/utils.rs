@@ -490,6 +490,7 @@ pub fn create_listing(
 pub fn make_offer(
     market_hash: ContractHash,
     cep47_hash: ContractHash,
+    erc20_hash: ContractHash,
     account_address: AccountHash,
     offer_price: U256,
     token_id: &str
@@ -503,6 +504,7 @@ pub fn make_offer(
                 "nft_contract_hash" => get_nft_contract_hash(cep47_hash),
                 "token_id" => token_id,
                 "offer_price" => offer_price,
+                "erc20_contract" => erc20_hash,
             },
         )
         .build()
