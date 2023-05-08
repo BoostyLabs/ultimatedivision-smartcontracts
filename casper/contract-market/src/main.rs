@@ -5,7 +5,7 @@
 // `no_std` environment.
 extern crate alloc;
 
-use alloc::{collections::BTreeMap, format, str, string::{String, ToString}, vec, vec::Vec, borrow::ToOwned};
+use alloc::{collections::BTreeMap, format, str, string::{String, ToString}, vec, vec::Vec, borrow::ToOwned, fmt::format};
 
 use casper_contract::{
     contract_api::{
@@ -17,7 +17,7 @@ use casper_contract::{
 use casper_types::{
     contracts::{EntryPoint, EntryPointAccess, EntryPointType, EntryPoints},
     runtime_args, CLType, CLTyped, CLValue, ContractHash, ContractPackageHash, Key, Parameter,
-    RuntimeArgs, URef, U128, U256,
+    RuntimeArgs, URef, U128, U256, account::AccountHash,
 };
 
 use contract_util::{current_contract, erc20};
@@ -44,7 +44,7 @@ const AUCTION_DURATION_ARG: &str = "auction_duration";
 const BUYER_PURSE_ARG: &str = "purse";
 const ACCEPTED_OFFER_ARG: &str = "accepted_offer";
 
-// vvvrev:
+// vvvdone:
 // +add min bid price
 // +add redeem price
 // +add check that redeem price >= redeem price
@@ -106,7 +106,7 @@ pub extern "C" fn create_listing() -> () {
 }
 
 // vvvrev:
-// add canceling offer +8h
+// add canceling offer if exists +8h
 // cover: 50%
 
 #[no_mangle]
@@ -185,10 +185,11 @@ pub fn buy_listing_confirm() {
     });
 }
 
-// vvvrev:
-// get previous offer, check and return it
-// 8h-16h
-// cover: 50%
+// vvvrev: 
+// transfer money to contract
+// remove offer: transfer money back to the &bidder 
+// check whether new bid greater than previous
+// 4h
 #[no_mangle]
 pub extern "C" fn make_offer() -> () {
     let bidder = Key::Account(runtime::get_caller());
@@ -265,14 +266,33 @@ pub extern "C" fn withdraw_offer() -> () {
 // cover: 50%
 #[no_mangle]
 pub extern "C" fn accept_offer() -> () {
+
+    runtime::print("VVV-accept offer");
+
     let seller = Key::Account(runtime::get_caller());
+
+    let text = format!("VVV-accept offer::seller {:?}", seller);
+    runtime::print(&text);
+
     let nft_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
+    runtime::print("VVV-accept offer21 {:?}");
+
     let nft_contract_hash: ContractHash =
         ContractHash::from_formatted_str(&nft_contract_string).unwrap();
+
+    runtime::print("VVV-accept offer2");
+
+
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
     let token_ids: Vec<U256> = token_id_to_vec(&token_id);
+    runtime::print("VVV-accept offer3");
+
     let offer_account_hash: String = runtime::get_named_arg(ACCEPTED_OFFER_ARG);
+    let text = &format!("VVV-accept offer4 {:?}", offer_account_hash);
+    runtime::print(text);
+
     let accepted_bidder_hash: Key = Key::from_formatted_str(&offer_account_hash).unwrap();
+
     let offers_id: String = get_id(&nft_contract_string, &token_id);
 
     let (mut offers, dictionary_uref): (BTreeMap<Key, U256>, URef) = get_offers(&offers_id);
@@ -392,7 +412,7 @@ fn get_entry_points() -> EntryPoints {
         vec![
             Parameter::new(NFT_CONTRACT_HASH_ARG, String::cl_type()),
             Parameter::new(TOKEN_ID_ARG, String::cl_type()),
-            Parameter::new(ACCEPTED_OFFER_ARG, URef::cl_type()),
+            Parameter::new(ACCEPTED_OFFER_ARG, String::cl_type()),
         ],
         <()>::cl_type(),
         EntryPointAccess::Public,

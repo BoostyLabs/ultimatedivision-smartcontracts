@@ -10,7 +10,7 @@ mod tests {
         arbitrary_user, deploy_market, deploy_cep47,
         init_environment, deploy_erc20, execution_error,
         fill_purse_on_token_contract, exec_deploy, 
-         setup_context, query, create_listing, approve_token, buy_listing, get_auction_data, query_balance, mint_tokens, make_offer
+         setup_context, query, create_listing, approve_token, buy_listing, get_auction_data, query_balance, mint_tokens, make_offer, accept_offer
     };
     use casper_execution_engine::core::{engine_state, execution};
     use casper_types::{U256, Key, ApiError};
@@ -186,6 +186,8 @@ mod tests {
             res.get("redemption_price").unwrap()
         );
         // vvvrev: check NFT transfered
+        // vvvrev: check listing query dictionary on market contract
+        // vvvrev: check whether offers were cancelled
     }
 
     #[test]
@@ -257,7 +259,8 @@ mod tests {
         assert_eq!(res.get("nft_contract").unwrap(), &cep47_hash.to_formatted_string());
         assert_eq!(res.get("token_id").unwrap(), &token_id);
         assert_eq!(res.get("redemption_price").unwrap(), &offer_price.to_string());
-        // vvvrev: check collection of offers
+        // vvvrev: check whether new bid gt previous
+        // vvvrev: check collection of offers 
         // vvvrev: check balance of bidder
 
         let bidder_balance_before = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder.address));
@@ -271,12 +274,108 @@ mod tests {
             token_id
         );
         exec_deploy(&mut context, make_offer_deploy).expect_success();
+        // vvvrev: check collection of offers whether previous one was deleted
 
         let bidder_balance_after = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder.address));
 
 
         println!("VVV::bidder_balance_before {:?}", bidder_balance_before);
         println!("VVV::bidder_balance_after {:?}", bidder_balance_after);
+    }
+
+    #[test]
+    fn accept_offer_test() {
+        /*
+            Scenario:
+            1. Call "create listing"
+            2. Call "make_offer" entrypoint to make an offer
+            3. Assert success
+        */
+
+        let (
+            mut context,
+            erc20_hash,
+            erc20_package_hash,
+             cep47_hash,
+             _,
+             market_hash,
+             market_package_hash
+        ) = init_environment();
+        let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
+        let offer_price = U256::one() * 4;
+        let token_id = "1";
+
+        let approve_deploy = approve_token(
+            cep47_hash,
+            market_package_hash,
+            context.account.address,
+            vec![U256::one()]
+        );
+        exec_deploy(&mut context, approve_deploy).expect_success();
+
+        let create_listing_deploy = create_listing(
+            market_hash,
+            cep47_hash,
+            context.account.address,
+            min_bid_price, 
+            redemption_price,
+            auction_duration,
+            token_id
+        );
+        exec_deploy(&mut context, create_listing_deploy).expect_success();
+
+
+        let bidder = arbitrary_user(&mut context);
+        fill_purse_on_token_contract(
+            &mut context,
+            erc20_hash,
+            U256::one() * 10000,
+            Key::from(bidder.address),
+        );
+
+        let make_offer_deploy: engine_state::DeployItem = make_offer(
+            market_hash,
+            cep47_hash,
+            erc20_hash,
+            bidder.address,
+            offer_price, 
+            token_id
+        );
+        exec_deploy(&mut context, make_offer_deploy).expect_success();
+
+        let make_offer_deploy: engine_state::DeployItem = make_offer(
+            market_hash,
+            cep47_hash,
+            erc20_hash,
+            bidder.address,
+            offer_price, 
+            token_id
+        );
+        exec_deploy(&mut context, make_offer_deploy).expect_success();
+
+        println!("YYY- {:?}", bidder.address);
+        let accept_offer_deploy: engine_state::DeployItem = accept_offer(
+            market_hash,
+            cep47_hash,
+            erc20_hash,
+            context.account.address,
+            bidder.address, 
+            token_id
+        );
+        exec_deploy(&mut context, accept_offer_deploy).expect_success();
+
+        let res: BTreeMap<String, String> = query(&mut context.builder, market_hash, "latest_event");
+        println!("VVV-res {:?}", res);
+        assert_eq!(res.get("event_type").unwrap(), "market_offer_accepted");
+        assert_eq!(res.get("contract_package_hash").unwrap(), &market_package_hash.to_string());
+        assert_eq!(res.get("buyer").unwrap().to_string(), Key::Account(bidder.address).to_string());
+        assert_eq!(res.get("seller").unwrap().to_string(), Key::Account(context.account.address).to_string());
+        assert_eq!(res.get("nft_contract").unwrap(), &cep47_hash.to_formatted_string());
+        assert_eq!(res.get("token_id").unwrap(), &token_id);
+        assert_eq!(res.get("redemption_price").unwrap(), &offer_price.to_string());
+
+
+
     }
 
     // vvvcurrent: make_offer add negative cases
@@ -667,5 +766,6 @@ mod tests {
 
     }
     // vvvrev: add make_offer use case to insufficient check balance
+    // vvvrev: add verification that new less previous
 
 }

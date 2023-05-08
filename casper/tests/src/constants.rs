@@ -18,4 +18,5 @@ pub const EP_MINT: &str = "mint_copies";
 pub const EP_CREATE_LISTING: &str = "create_listing";
 pub const EP_BUY_LISTING: &str = "buy_listing";
 pub const EP_MAKE_OFFER: &str = "make_offer";
+pub const EP_ACCEPT_OFFER: &str = "accept_offer";
 pub const EP_APPROVE: &str = "approve";

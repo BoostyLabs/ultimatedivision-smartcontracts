@@ -45,8 +45,6 @@ impl From<Error> for ApiError {
     }
 }
 
-// vvvfix: remove debug
-
 // struct being used only for workaround to dictionary limitation (no remove function)
 #[derive(CLTyped, ToBytes, FromBytes, Debug)]
 pub struct Listing {
@@ -56,7 +54,6 @@ pub struct Listing {
     pub min_bid_price: U256,
     pub redemption_price: U256,
     pub auction_duration: U128,
-    // vvvrev: add params
 }
 
 const EVENT_TYPE: &str = "event_type";
@@ -214,7 +211,6 @@ pub fn remove_offer(nft_contract_string: &String, token_id: &String, bidder: &Ke
     let (mut offers, dictionary_uref): (BTreeMap<Key, U256>, URef) = get_offers(&offers_id);
     offers.remove(&bidder);
     storage::dictionary_put(dictionary_uref, &offers_id, offers);
-    // vvvrev: transfer money back to the &bidder 
 }
 
 pub fn emit(event: &MarketEvent) {
