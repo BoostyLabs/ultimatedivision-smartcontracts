@@ -10,10 +10,92 @@ mod tests {
         arbitrary_user, deploy_market, deploy_cep47,
         init_environment, deploy_erc20, execution_error,
         fill_purse_on_token_contract, exec_deploy, 
-         setup_context, query, create_listing, approve_token, buy_listing, get_auction_data, query_balance, mint_tokens, make_offer, accept_offer
+         setup_context, query, create_listing, approve_nft, buy_listing, get_auction_data, query_balance, mint_tokens, make_offer, accept_offer, UserAccount, TestContext, approve_erc20
     };
     use casper_execution_engine::core::{engine_state, execution};
-    use casper_types::{U256, Key, ApiError};
+    use casper_types::{U256, Key, ApiError, ContractPackageHash, ContractHash};
+
+
+    fn make_offer_flow(
+        market_package_hash: ContractPackageHash, 
+        market_hash: ContractHash,
+        cep47_hash: ContractHash,
+        erc20_hash: ContractHash,
+        token_id: &str,
+        offer_price: U256,
+        approved_price: U256,
+        context: &mut TestContext
+    ) -> UserAccount {
+        let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
+        // vvvfix: duplicate?    
+        let approve_nft_deploy = approve_nft(
+            cep47_hash,
+            market_package_hash,
+            context.account.address,
+            vec![U256::one()]
+        );
+        exec_deploy(context, approve_nft_deploy).expect_success();
+
+        let create_listing_deploy = create_listing(
+            market_hash,
+            cep47_hash,
+            context.account.address,
+            min_bid_price, 
+            redemption_price,
+            auction_duration,
+            token_id
+        );
+        exec_deploy(context, create_listing_deploy).expect_success();
+
+
+        let bidder = arbitrary_user(context);
+        fill_purse_on_token_contract(
+            context,
+            erc20_hash,
+            U256::one() * 10000,
+            Key::from(bidder.address),
+        );
+
+        let approve_nft_deploy = approve_nft(
+            cep47_hash,
+            market_package_hash,
+            context.account.address,
+            vec![U256::one()]
+        );
+        exec_deploy(context, approve_nft_deploy).expect_success();
+
+        let approve_erc20_deploy = approve_erc20(
+            erc20_hash,
+            market_package_hash,
+            bidder.address,
+            approved_price + 1 // vvvq
+        );
+        exec_deploy(context, approve_erc20_deploy).expect_success();
+
+        let bidder_balance_before = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder.address));
+
+        let make_offer_deploy: engine_state::DeployItem = make_offer(
+            market_hash,
+            cep47_hash,
+            erc20_hash,
+            bidder.address,
+            offer_price, 
+            token_id
+        );
+        exec_deploy(context, make_offer_deploy).expect_success();
+
+        let bidder_balance_after = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder.address));
+        println!("VVV::bidder_balance_before {:?}", bidder_balance_before);
+        println!("VVV::bidder_balance_after {:?}", bidder_balance_after);
+
+
+        assert_eq!(bidder_balance_before - offer_price, bidder_balance_after);
+
+
+
+        bidder
+    }
+
 
     #[test]
     fn test_deploy_cep47() {
@@ -73,10 +155,10 @@ mod tests {
         let (mut context, _,_,cep47_hash,_,market_hash, market_package_hash) = init_environment();
         let token_id = "1";
 
-        let approve_deploy = approve_token(
+        let approve_nft_deploy = approve_nft(
             cep47_hash, market_package_hash,  context.account.address, vec![U256::one()]
         );
-        exec_deploy(&mut context, approve_deploy).expect_success();
+        exec_deploy(&mut context, approve_nft_deploy).expect_success();
 
         let create_listing_deploy = create_listing(
             market_hash, 
@@ -126,13 +208,13 @@ mod tests {
         let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
         let token_id = "1";
 
-        let approve_deploy = approve_token(
+        let approve_nft_deploy = approve_nft(
             cep47_hash,
             market_package_hash,
             context.account.address,
             vec![U256::one()]
         );
-        exec_deploy(&mut context, approve_deploy).expect_success();
+        exec_deploy(&mut context, approve_nft_deploy).expect_success();
 
         let buyer = arbitrary_user(&mut context);
         fill_purse_on_token_contract(
@@ -208,47 +290,22 @@ mod tests {
              market_hash,
              market_package_hash
         ) = init_environment();
-        let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
         let offer_price = U256::one() * 4;
         let token_id = "1";
 
-        let approve_deploy = approve_token(
-            cep47_hash,
+
+
+        let bidder = make_offer_flow(
             market_package_hash,
-            context.account.address,
-            vec![U256::one()]
-        );
-        exec_deploy(&mut context, approve_deploy).expect_success();
-
-        let create_listing_deploy = create_listing(
-            market_hash,
-            cep47_hash,
-            context.account.address,
-            min_bid_price, 
-            redemption_price,
-            auction_duration,
-            token_id
-        );
-        exec_deploy(&mut context, create_listing_deploy).expect_success();
-
-
-        let bidder = arbitrary_user(&mut context);
-        fill_purse_on_token_contract(
-            &mut context,
-            erc20_hash,
-            U256::one() * 10000,
-            Key::from(bidder.address),
-        );
-
-        let make_offer_deploy: engine_state::DeployItem = make_offer(
             market_hash,
             cep47_hash,
             erc20_hash,
-            bidder.address,
-            offer_price, 
-            token_id
+            token_id,
+            offer_price,
+            offer_price,
+            &mut context
         );
-        exec_deploy(&mut context, make_offer_deploy).expect_success();
+
 
         let res: BTreeMap<String, String> = query(&mut context.builder, market_hash, "latest_event");
 
@@ -259,28 +316,21 @@ mod tests {
         assert_eq!(res.get("nft_contract").unwrap(), &cep47_hash.to_formatted_string());
         assert_eq!(res.get("token_id").unwrap(), &token_id);
         assert_eq!(res.get("redemption_price").unwrap(), &offer_price.to_string());
-        // vvvrev: check whether new bid gt previous
         // vvvrev: check collection of offers 
-        // vvvrev: check balance of bidder
 
-        let bidder_balance_before = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder.address));
-
-        let make_offer_deploy: engine_state::DeployItem = make_offer(
-            market_hash,
-            cep47_hash,
-            erc20_hash,
-            bidder.address,
-            offer_price, 
-            token_id
-        );
-        exec_deploy(&mut context, make_offer_deploy).expect_success();
+        // let make_offer_deploy: engine_state::DeployItem = make_offer(
+        //     market_hash,
+        //     cep47_hash,
+        //     erc20_hash,
+        //     bidder.address,
+        //     offer_price + U256::one(), 
+        //     token_id
+        // );
+        // exec_deploy(&mut context, make_offer_deploy).expect_success();
         // vvvrev: check collection of offers whether previous one was deleted
 
-        let bidder_balance_after = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder.address));
 
 
-        println!("VVV::bidder_balance_before {:?}", bidder_balance_before);
-        println!("VVV::bidder_balance_after {:?}", bidder_balance_after);
     }
 
     #[test]
@@ -305,13 +355,13 @@ mod tests {
         let offer_price = U256::one() * 4;
         let token_id = "1";
 
-        let approve_deploy = approve_token(
+        let approve_nft_deploy = approve_nft(
             cep47_hash,
             market_package_hash,
             context.account.address,
             vec![U256::one()]
         );
-        exec_deploy(&mut context, approve_deploy).expect_success();
+        exec_deploy(&mut context, approve_nft_deploy).expect_success();
 
         let create_listing_deploy = create_listing(
             market_hash,
@@ -394,10 +444,10 @@ mod tests {
         let auction_duration: U256 = U256::one() * 100;
         let (mut context, _,_,cep47_hash,_,market_hash, market_package_hash) = init_environment();
         let token_id = "1";
-        let approve_deploy = approve_token(
+        let approve_nft_deploy = approve_nft(
             cep47_hash, market_package_hash,  context.account.address, vec![U256::one()]
         );
-        exec_deploy(&mut context, approve_deploy).expect_success();
+        exec_deploy(&mut context, approve_nft_deploy).expect_success();
 
         let create_listing_deploy = create_listing(
             market_hash, 
@@ -431,10 +481,10 @@ mod tests {
         let auction_duration: U256 = U256::zero() * 86_400;
         let (mut context, _,_,cep47_hash,_,market_hash, market_package_hash) = init_environment();
         let token_id = "1";
-        let approve_deploy = approve_token(
+        let approve_nft_deploy = approve_nft(
             cep47_hash, market_package_hash,  context.account.address, vec![U256::one()]
         );
-        exec_deploy(&mut context, approve_deploy).expect_success();
+        exec_deploy(&mut context, approve_nft_deploy).expect_success();
 
         let create_listing_deploy = create_listing(
             market_hash, 
@@ -508,10 +558,10 @@ mod tests {
         );
         exec_deploy(&mut context, mint_deploy).expect_success();
     
-        let approve_deploy = approve_token(
+        let approve_nft_deploy = approve_nft(
             cep47_hash, market_package_hash,  context.account.address, vec![U256::one()]
         );
-        exec_deploy(&mut context, approve_deploy).expect_success();
+        exec_deploy(&mut context, approve_nft_deploy).expect_success();
 
         let create_listing_deploy = create_listing(
             market_hash, 
@@ -587,13 +637,13 @@ mod tests {
         let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
         let token_id = "1";
 
-        let approve_deploy = approve_token(
+        let approve_nft_deploy = approve_nft(
             cep47_hash,
             market_package_hash,
             context.account.address,
             vec![U256::one()]
         );
-        exec_deploy(&mut context, approve_deploy).expect_success();
+        exec_deploy(&mut context, approve_nft_deploy).expect_success();
 
         let buyer = arbitrary_user(&mut context);
         fill_purse_on_token_contract(
@@ -654,13 +704,13 @@ mod tests {
         let token_id: &str = "1";
         let invalid_token_id = "222";
 
-        let approve_deploy = approve_token(
+        let approve_nft_deploy = approve_nft(
             cep47_hash,
             market_package_hash,
             context.account.address,
             vec![U256::one()]
         );
-        exec_deploy(&mut context, approve_deploy).expect_success();
+        exec_deploy(&mut context, approve_nft_deploy).expect_success();
 
         let create_listing_deploy = create_listing(
             market_hash,
@@ -721,13 +771,13 @@ mod tests {
         let offer_price = U256::one() * 2;
         let token_id = "1";
 
-        let approve_deploy = approve_token(
+        let approve_nft_deploy = approve_nft(
             cep47_hash,
             market_package_hash,
             context.account.address,
             vec![U256::one()]
         );
-        exec_deploy(&mut context, approve_deploy).expect_success();
+        exec_deploy(&mut context, approve_nft_deploy).expect_success();
 
         let create_listing_deploy = create_listing(
             market_hash,
@@ -766,6 +816,124 @@ mod tests {
 
     }
     // vvvrev: add make_offer use case to insufficient check balance
-    // vvvrev: add verification that new less previous
+
+    #[test]
+    fn make_offer_test_invalid_next_price() {
+        /*
+            Scenario:
+            1. Call "create listing"
+            2. Call "make_offer" entrypoint to make an offer
+            3. Call "make_offer" entrypoint to make an offer with the price same as previous
+            4. Assert fail
+        */
+
+        let (
+            mut context,
+            erc20_hash,
+            erc20_package_hash,
+             cep47_hash,
+             _,
+             market_hash,
+             market_package_hash
+        ) = init_environment();
+        let offer_price = U256::one() * 4;
+        let token_id = "1";
+
+        let bidder = make_offer_flow(
+            market_package_hash, 
+            market_hash,
+            cep47_hash,
+            erc20_hash,
+            token_id,
+            offer_price,
+            offer_price,
+            &mut context,
+        );
+
+        let bidder_balance_before = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder.address));
+
+        let make_offer_deploy: engine_state::DeployItem = make_offer(
+            market_hash,
+            cep47_hash,
+            erc20_hash,
+            bidder.address,
+            offer_price, 
+            token_id
+        );
+        let error = execution_error(&mut context, make_offer_deploy);
+        // vvvrefactor: move codes
+        let expected_error = engine_state::Error::Exec(execution::Error::Revert(ApiError::User(
+            1012,
+        )));
+        assert_eq!(error.to_string(), expected_error.to_string());
+
+        // vvvrev: check collection of offers whether previous one was deleted
+
+        let bidder_balance_after = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder.address));
+
+
+        println!("VVV::bidder_balance_before {:?}", bidder_balance_before);
+        println!("VVV::bidder_balance_after {:?}", bidder_balance_after);
+    }
+
+    #[test]
+    fn make_offer_test_insufficient_balance() {
+        // vvvinprogress - revision
+        /*
+            Scenario:
+            1. Call "create listing"
+            2. Call "make_offer" entrypoint to make an offer
+            3. Call "make_offer" entrypoint to make an offer with the price same as previous
+            4. Assert fail
+        */
+
+        let (
+            mut context,
+            erc20_hash,
+            erc20_package_hash,
+             cep47_hash,
+             _,
+             market_hash,
+             market_package_hash
+        ) = init_environment();
+        let offer_price = U256::one() * 50;
+        let token_id = "1";
+
+        let bidder = make_offer_flow(
+            market_package_hash, 
+            market_hash,
+            cep47_hash,
+            erc20_hash,
+            token_id,
+            offer_price,
+            U256::one(),
+            &mut context,
+        );
+
+        let bidder_balance_before = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder.address));
+
+        let make_offer_deploy: engine_state::DeployItem = make_offer(
+            market_hash,
+            cep47_hash,
+            erc20_hash,
+            bidder.address,
+            offer_price, 
+            token_id
+        );
+        let error = execution_error(&mut context, make_offer_deploy);
+        // vvvrefactor: move codes
+        let expected_error = engine_state::Error::Exec(execution::Error::Revert(ApiError::User(
+            1012,
+        )));
+        assert_eq!(error.to_string(), expected_error.to_string());
+
+        // vvvrev: check collection of offers whether previous one was deleted
+
+        let bidder_balance_after = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder.address));
+
+
+        println!("VVV::bidder_balance_before {:?}", bidder_balance_before);
+        println!("VVV::bidder_balance_after {:?}", bidder_balance_after);
+    }
 
 }

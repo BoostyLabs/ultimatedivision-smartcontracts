@@ -106,7 +106,7 @@ pub extern "C" fn create_listing() -> () {
 }
 
 // vvvrev:
-// add canceling offer if exists +8h
+// add canceling previous_offer_price if exists +8h
 // cover: 50%
 
 #[no_mangle]
@@ -186,9 +186,9 @@ pub fn buy_listing_confirm() {
 }
 
 // vvvrev: 
-// transfer money to contract
-// remove offer: transfer money back to the &bidder 
-// check whether new bid greater than previous
+// +transfer money to contract
+// remove previous_offer_price: transfer money back to the &bidder 
+// +check whether new bid greater than previous
 // 4h
 #[no_mangle]
 pub extern "C" fn make_offer() -> () {
@@ -201,10 +201,8 @@ pub extern "C" fn make_offer() -> () {
     let listing_id: &str = &(get_id(&nft_contract_string, &token_id).to_owned())[..];
     let (_listing, _) = get_listing(&listing_id);
     let erc20_contract: ContractHash = runtime::get_named_arg(ERC20_CONTRACT_ARG);
-
-
-    let text = format!("VVV-make_offer {:?}", erc20_contract);
-    runtime::print(&text);
+    let (self_contract_package, self_contract_hash) = current_contract();
+    let self_contract_key: Key = self_contract_package.into();
 
 
     let (mut offers, dictionary_uref): (BTreeMap<Key, U256>, URef) = get_offers(&offers_id);
@@ -212,9 +210,13 @@ pub extern "C" fn make_offer() -> () {
     if offer_price < _listing.min_bid_price {
         runtime::revert(Error::OfferPriceLessThanMinBid);
     }
-    // TODO: rebalance current offer instead of error
+    // TODO: rebalance current previous_offer_price instead of error
     match offers.get(&bidder) {
-        Some(offer) => {
+        Some(previous_offer_price) => {
+            if offer_price <= *previous_offer_price {
+                runtime::revert(Error::OfferPriceShouldBeGreaterThanPrevOffer);
+            }
+
             remove_offer(&nft_contract_string, &token_id, &bidder);
         },
         None => (),
@@ -222,8 +224,10 @@ pub extern "C" fn make_offer() -> () {
 
     let (mut offers, dictionary_uref): (BTreeMap<Key, U256>, URef) = get_offers(&offers_id);
 
+    erc20::transfer_from(erc20_contract, bidder, self_contract_key, offer_price);
     offers.insert(bidder, offer_price);
-    // vvvrev:
+
+    // vvvfix:
     //system::transfer_from_purse_to_purse(bidder_purse, offers_purse, purse_balance, None).unwrap_or_revert();
     storage::dictionary_put(dictionary_uref, &offers_id, offers);
 
@@ -236,7 +240,7 @@ pub extern "C" fn make_offer() -> () {
     })
 }
 
-// vvvrev: re-use some code
+// vvvcheck: re-use some code
 #[no_mangle]
 pub extern "C" fn withdraw_offer() -> () {
     let bidder = Key::Account(runtime::get_caller());
@@ -267,11 +271,11 @@ pub extern "C" fn withdraw_offer() -> () {
 #[no_mangle]
 pub extern "C" fn accept_offer() -> () {
 
-    runtime::print("VVV-accept offer");
+    runtime::print("VVV-accept previous_offer_price");
 
     let seller = Key::Account(runtime::get_caller());
 
-    let text = format!("VVV-accept offer::seller {:?}", seller);
+    let text = format!("VVV-accept previous_offer_price::seller {:?}", seller);
     runtime::print(&text);
 
     let nft_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
@@ -443,4 +447,4 @@ fn get_entry_points() -> EntryPoints {
 }
 
 // vvvrev: add commission logic
-// cancel offer
+// cancel previous_offer_price

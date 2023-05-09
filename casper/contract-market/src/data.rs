@@ -37,6 +37,7 @@ pub enum Error {
     AuctionInvalidDuration = 1009,
     UnexpectedTransferAmount = 1010,
     OfferPriceLessThanMinBid = 1011,
+    OfferPriceShouldBeGreaterThanPrevOffer = 1012,
 }
 
 impl From<Error> for ApiError {

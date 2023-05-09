@@ -1,7 +1,7 @@
 use casper_contract::{
-    contract_api::runtime::call_versioned_contract, unwrap_or_revert::UnwrapOrRevert,
+    contract_api::runtime::{call_versioned_contract, call_contract, self}, unwrap_or_revert::UnwrapOrRevert,
 };
-use casper_types::{ContractPackageHash, Key, RuntimeArgs, U256};
+use casper_types::{ContractPackageHash, Key, RuntimeArgs, U256, ContractHash};
 use alloc::string::String;
 
 mod consts {
@@ -41,6 +41,26 @@ pub fn transfer(contract: ContractPackageHash, recepient: Key, amount: U256) {
     call_versioned_contract::<()>(contract, None, EP_TRANSFER, args);
 }
 
+
+pub fn transfer_from(contract: ContractHash, owner: Key, recepient: Key, amount: U256) {
+    let text = alloc::format!("VVV-transfer_from::owner {:?}", owner);
+    runtime::print(&text);
+    let text = alloc::format!("VVV-transfer_from::recepient {:?}", recepient);
+    runtime::print(&text);
+    let text = alloc::format!("VVV-transfer_from::amount {:?}", amount);
+    runtime::print(&text);
+
+    let args = RuntimeArgs::try_new(|args| {
+        args.insert(PARAM_OWNER, owner)?;
+        args.insert(PARAM_RECIPIENT, recepient)?;
+        args.insert(PARAM_AMOUNT, amount)?;
+        Ok(())
+    })
+    .unwrap_or_revert();
+
+    call_contract::<()>(contract, EP_TRANSFER_FROM, args);
+}
+
 pub fn balance_of(contract: ContractPackageHash, address: Key) -> U256 {
 
     let args = RuntimeArgs::try_new(|args| {
@@ -48,9 +68,6 @@ pub fn balance_of(contract: ContractPackageHash, address: Key) -> U256 {
         Ok(())
     })
     .unwrap_or_revert();
-
-
-
     call_versioned_contract::<U256>(contract, None, EP_BALANCE_OF, args)
 }
 

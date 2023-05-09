@@ -402,7 +402,7 @@ where
 }
 
 
-pub fn approve_token(
+pub fn approve_nft(
     cep47_hash: ContractHash,
     spender: ContractPackageHash,
     account_address: AccountHash,
@@ -416,6 +416,30 @@ pub fn approve_token(
             runtime_args! {
                 "spender" => Key::from(spender),
                 "token_ids" => token_ids,
+            },
+        )
+        .build()
+        
+}
+
+pub fn approve_erc20(
+    erc20_hash: ContractHash,
+    spender: ContractPackageHash,
+    account_address: AccountHash,
+    amount: U256
+) -> DeployItem {
+
+    println!("VVV-approve::spender {:?}", spender);
+    println!("VVV-approve::amount {:?}", amount);
+    println!("VVV-approve::account_address {:?}", account_address);
+
+    simple_deploy_builder(account_address)
+        .with_stored_session_hash(
+            erc20_hash,
+            EP_APPROVE,
+            runtime_args! {
+                "spender" => Key::from(spender),
+                "amount" => amount,
             },
         )
         .build()
@@ -730,7 +754,7 @@ pub fn fill_purse_on_token_contract(
         .commit()
         .expect_success();
 
-    // vvvrev: modify it    
+    // vvvfix: modify it    
     // let total_balance = query_balance(&mut context.builder, token_hash, &recipient);
     // assert_eq!(total_balance, initial_balance + amount);
 }
