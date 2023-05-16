@@ -106,7 +106,7 @@ pub extern "C" fn create_listing() -> () {
 }
 
 // vvvrev:
-// add canceling previous_offer_price if exists +8h
+// add canceling previous_offer_price if exists and transfer back money to the previous bidder +8h
 // cover: 50%
 
 #[no_mangle]
@@ -122,7 +122,6 @@ pub fn buy_listing() -> () {
 
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
 
-    // vvvref: String->str?
     let listing_id: &str = &(get_id(&nft_contract_string, &token_id).to_owned())[..];
 
     let listing = interface::onchain::get_listing_by_id(self_contract_hash, listing_id);
@@ -201,23 +200,28 @@ pub extern "C" fn make_offer() -> () {
     let listing_id: &str = &(get_id(&nft_contract_string, &token_id).to_owned())[..];
     let (_listing, _) = get_listing(&listing_id);
     let erc20_contract: ContractHash = runtime::get_named_arg(ERC20_CONTRACT_ARG);
-    let (self_contract_package, self_contract_hash) = current_contract();
+    let (self_contract_package, _) = current_contract();
     let self_contract_key: Key = self_contract_package.into();
 
 
-    let (mut offers, dictionary_uref): (BTreeMap<Key, U256>, URef) = get_offers(&offers_id);
+    let (mut offers, _): (BTreeMap<Key, U256>, URef) = get_offers(&offers_id);
 
     if offer_price < _listing.min_bid_price {
         runtime::revert(Error::OfferPriceLessThanMinBid);
     }
     // TODO: rebalance current previous_offer_price instead of error
+    let text = alloc::format!("recepient::: offer delete");
+    runtime::print(&text);
+
     match offers.get(&bidder) {
         Some(previous_offer_price) => {
             if offer_price <= *previous_offer_price {
                 runtime::revert(Error::OfferPriceShouldBeGreaterThanPrevOffer);
             }
-
-            remove_offer(&nft_contract_string, &token_id, &bidder);
+            let text = alloc::format!("recepient::: offer delete");
+            runtime::print(&text);
+        
+            remove_offer(&nft_contract_string, &token_id, &bidder, erc20_contract, *previous_offer_price);
         },
         None => (),
     }
@@ -247,7 +251,7 @@ pub extern "C" fn withdraw_offer() -> () {
     let nft_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
 
-    remove_offer(&nft_contract_string, &token_id, &bidder);
+    //remove_offer(&nft_contract_string, &token_id, &bidder);
 
     // system::transfer_from_purse_to_account(
     //     offers_purse,
@@ -435,4 +439,4 @@ fn get_entry_points() -> EntryPoints {
 }
 
 // vvvrev: add commission logic
-// cancel previous_offer_price
+// vvvrev: hardcode erc20 contract?

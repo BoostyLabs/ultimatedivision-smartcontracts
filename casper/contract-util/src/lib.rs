@@ -76,8 +76,6 @@ pub fn call_stack() -> Vec<CallStackElement> {
 pub fn call_stack_elem(depth: usize) -> Option<CallStackElement> {
     let call_stack = call_stack();
 
-    let str = alloc::format!("VVVLEN {}", call_stack.len());
-
     if depth >= call_stack.len() {
         None
     } else {

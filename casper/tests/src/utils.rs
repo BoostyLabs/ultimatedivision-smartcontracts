@@ -757,12 +757,12 @@ pub fn fill_purse_on_token_contract(
     // assert_eq!(total_balance, initial_balance + amount);
 }
 
-pub fn arbitrary_user(context: &mut TestContext) -> UserAccount {
-    UserAccount::unique_account(context, 0)
+pub fn arbitrary_user(context: &mut TestContext, unique_id: u8) -> UserAccount { // vvvref Default trait
+    UserAccount::unique_account(context, unique_id)
 }
 
 pub fn arbitrary_user_key(context: &mut TestContext) -> Key {
-    arbitrary_user(context).key()
+    arbitrary_user(context, 0).key()
 }
 
 pub fn execution_context(

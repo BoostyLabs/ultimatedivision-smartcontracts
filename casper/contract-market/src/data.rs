@@ -17,6 +17,7 @@ use casper_types::{
     ApiError, Key, URef, ContractHash, ContractPackageHash, CLTyped, U256, U128};
 
 use casper_types_derive::{CLTyped, FromBytes, ToBytes};
+use contract_util::erc20;
 
 use crate::{
     event::MarketEvent
@@ -201,10 +202,18 @@ pub fn get_purse(purse_name: &str) -> URef {
     return purse;
 }
 
-pub fn remove_offer(nft_contract_string: &String, token_id: &String, bidder: &Key) {
+pub fn remove_offer(
+    nft_contract_string: &String, 
+    token_id: &String, 
+    bidder: &Key,
+    erc20_contract: ContractHash,
+    offer_price: U256
+) {
     let offers_id: String = get_id(nft_contract_string, token_id);
     let (mut offers, dictionary_uref): (BTreeMap<Key, U256>, URef) = get_offers(&offers_id);
     offers.remove(&bidder);
+
+    erc20::transfer_from_contract_to_recipient(erc20_contract, *bidder, offer_price);
     storage::dictionary_put(dictionary_uref, &offers_id, offers);
 }
 
