@@ -77,7 +77,6 @@ pub fn call_stack_elem(depth: usize) -> Option<CallStackElement> {
     let call_stack = call_stack();
 
     let str = alloc::format!("VVVLEN {}", call_stack.len());
-    runtime::print(&str);
 
     if depth >= call_stack.len() {
         None
@@ -97,13 +96,7 @@ pub fn caller_context() -> CallStackElement {
 pub fn current_context() -> CallStackElement {
     // this is infallible
 
-    let str = alloc::format!("VVV111");
-    runtime::print(&str);
-
     let data = call_stack_elem(0).unwrap_or_revert();
-
-    let str = alloc::format!("VVV222");
-    runtime::print(&str);
 
     return data;
 

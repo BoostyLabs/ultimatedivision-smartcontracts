@@ -271,30 +271,17 @@ pub extern "C" fn withdraw_offer() -> () {
 #[no_mangle]
 pub extern "C" fn accept_offer() -> () {
 
-    runtime::print("VVV-accept previous_offer_price");
-
     let seller = Key::Account(runtime::get_caller());
 
-    let text = format!("VVV-accept previous_offer_price::seller {:?}", seller);
-    runtime::print(&text);
-
     let nft_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
-    runtime::print("VVV-accept offer21 {:?}");
 
     let nft_contract_hash: ContractHash =
         ContractHash::from_formatted_str(&nft_contract_string).unwrap();
 
-    runtime::print("VVV-accept offer2");
-
-
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
     let token_ids: Vec<U256> = token_id_to_vec(&token_id);
-    runtime::print("VVV-accept offer3");
-
     let offer_account_hash: String = runtime::get_named_arg(ACCEPTED_OFFER_ARG);
     let text = &format!("VVV-accept offer4 {:?}", offer_account_hash);
-    runtime::print(text);
-
     let accepted_bidder_hash: Key = Key::from_formatted_str(&offer_account_hash).unwrap();
 
     let offers_id: String = get_id(&nft_contract_string, &token_id);
@@ -368,6 +355,7 @@ fn get_entry_points() -> EntryPoints {
     entry_points.add_entry_point(EntryPoint::new(
         "create_listing",
         vec![
+            Parameter::new(NFT_CONTRACT_HASH_ARG, String::cl_type()),
             Parameter::new(TOKEN_ID_ARG, String::cl_type()),
             Parameter::new(MIN_BID_PRICE_ARG, U256::cl_type()),
             Parameter::new(REDEMPTION_PRICE_ARG, U256::cl_type()),

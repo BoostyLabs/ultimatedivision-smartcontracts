@@ -91,12 +91,6 @@ pub fn contract_package_hash() -> ContractPackageHash {
         } => Some(*contract_package_hash),
         _ => None,
     };
-    let text = format!(
-        "VVC: {:?}\n\
-        ",
-        last_entry
-    );
-    runtime::print(&text);
 
     package_hash.unwrap_or_revert()
 }

@@ -43,12 +43,6 @@ pub fn transfer(contract: ContractPackageHash, recepient: Key, amount: U256) {
 
 
 pub fn transfer_from(contract: ContractHash, owner: Key, recepient: Key, amount: U256) {
-    let text = alloc::format!("VVV-transfer_from::owner {:?}", owner);
-    runtime::print(&text);
-    let text = alloc::format!("VVV-transfer_from::recepient {:?}", recepient);
-    runtime::print(&text);
-    let text = alloc::format!("VVV-transfer_from::amount {:?}", amount);
-    runtime::print(&text);
 
     let args = RuntimeArgs::try_new(|args| {
         args.insert(PARAM_OWNER, owner)?;

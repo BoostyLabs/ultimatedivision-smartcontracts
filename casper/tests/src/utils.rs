@@ -207,8 +207,6 @@ where
         "contract_name" => PARAM_NFT_CONTRACT_NAME,
         "name" => PARAM_NFT_NAME,
         "symbol" => PARAM_NFT_SYMBOL,
-        "meta" => test_meta_nft(),
-        "price" => PARAM_NFT_PRICE
     };
 
     deploy_contract(
