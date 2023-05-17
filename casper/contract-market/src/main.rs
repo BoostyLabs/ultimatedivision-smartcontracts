@@ -106,7 +106,7 @@ pub extern "C" fn create_listing() -> () {
     })
 }
 
-// vvvrev:
+// vvvdone:
 // add canceling previous_offer_price if exists and transfer back money to the previous bidder +8h
 // cover: 50%
 
@@ -119,47 +119,28 @@ pub fn buy_listing() -> () {
 
     let erc20_contract: ContractPackageHash = runtime::get_named_arg(ERC20_CONTRACT_ARG);
 
-    let (_, self_contract_hash) = current_contract();
-
     let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
 
     let listing_id: &str = &(get_id(&nft_contract_string, &token_id).to_owned())[..];
 
-    let listing = interface::onchain::get_listing_by_id(self_contract_hash, listing_id);
-
-    let balance_before_seller = erc20::balance_of(erc20_contract, listing.seller);
+    let (_listing, dictionary_uref) = get_listing(&listing_id);
 
     let buyer_balance = erc20::balance_of(erc20_contract, buyer);
-    if buyer_balance < listing.redemption_price {
+
+    if buyer_balance < _listing.redemption_price {
         runtime::revert(Error::BalanceInsufficient);
     }
 
-    erc20::transfer(erc20_contract, listing.seller, listing.redemption_price);
+    erc20::transfer_from_by_package(erc20_contract, buyer, _listing.seller, _listing.redemption_price);
 
-    let balance_after_seller = erc20::balance_of(erc20_contract, listing.seller);
-
-    if balance_after_seller.checked_sub(balance_before_seller) != Some(listing.redemption_price) {
-        revert(Error::UnexpectedTransferAmount)
+    match _listing.active_bid {
+        Some(bid) => {
+            erc20::transfer(erc20_contract, bid.bidder, bid.price);
+        },
+        None => ()
     }
 
-    interface::onchain::buy_listing_confirm(self_contract_hash, listing_id, buyer);
-}
 
-#[no_mangle]
-pub fn get_listing_by_id() {
-    let listing_id: String = runtime::get_named_arg("listing_id");
-    
-    let (_listing, _) = get_listing(&listing_id);
-
-    runtime::ret(CLValue::from_t(_listing).unwrap_or_revert());
-}
-
-#[no_mangle]
-pub fn buy_listing_confirm() {
-    let listing_id: String = runtime::get_named_arg("listing_id");
-    let buyer: Key = runtime::get_named_arg("buyer");
-    
-    let (_listing, dictionary_uref) = get_listing(&listing_id);
 
     let token_ids: Vec<U256> = token_id_to_vec(&_listing.token_id);
     runtime::call_contract::<()>(
@@ -185,9 +166,18 @@ pub fn buy_listing_confirm() {
     });
 }
 
-// vvvrev: 
+#[no_mangle]
+pub fn get_listing_by_id() {
+    let listing_id: String = runtime::get_named_arg("listing_id");
+    
+    let (_listing, _) = get_listing(&listing_id);
+
+    runtime::ret(CLValue::from_t(_listing).unwrap_or_revert());
+}
+
+// vvvdone: 
 // +transfer money to contract
-// remove previous_offer_price: transfer money back to the &bidder 
+// +remove previous_offer_price: transfer money back to the &bidder 
 // +check whether new bid greater than previous
 // 4h
 #[no_mangle]
@@ -376,7 +366,7 @@ fn get_entry_points() -> EntryPoints {
         ],
         <()>::cl_type(),
         EntryPointAccess::Public,
-        EntryPointType::Session,
+        EntryPointType::Contract,
     ));
     entry_points.add_entry_point(EntryPoint::new(
         "make_offer",
@@ -420,17 +410,6 @@ fn get_entry_points() -> EntryPoints {
         EntryPointAccess::Public,
         EntryPointType::Contract,
     ));
-    entry_points.add_entry_point(EntryPoint::new(
-        "buy_listing_confirm",
-        vec![
-            Parameter::new("listing_id", String::cl_type()),
-            Parameter::new("buyer", Key::cl_type()),
-        ],
-        <()>::cl_type(),
-        EntryPointAccess::Public,
-        EntryPointType::Contract,
-    ));
-
 
     entry_points
 }

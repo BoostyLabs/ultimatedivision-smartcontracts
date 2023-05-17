@@ -14,13 +14,3 @@ pub fn get_listing_by_id(market_contract: ContractHash, listing_id: &str) -> Lis
     )
 }
 
-pub fn buy_listing_confirm(market_contract: ContractHash, listing_id: &str, buyer: Key) {
-    call_contract::<()>(
-        market_contract,
-        "buy_listing_confirm",
-        runtime_args! {
-          "listing_id" => listing_id,
-          "buyer" => buyer
-        },
-    );
-}

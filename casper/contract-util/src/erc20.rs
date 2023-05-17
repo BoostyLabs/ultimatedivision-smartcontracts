@@ -70,6 +70,19 @@ pub fn transfer_from(contract: ContractHash, owner: Key, recepient: Key, amount:
     call_contract::<()>(contract, EP_TRANSFER_FROM, args);
 }
 
+pub fn transfer_from_by_package(contract: ContractPackageHash, owner: Key, recepient: Key, amount: U256) {
+
+    let args = RuntimeArgs::try_new(|args| {
+        args.insert(PARAM_OWNER, owner)?;
+        args.insert(PARAM_RECIPIENT, recepient)?;
+        args.insert(PARAM_AMOUNT, amount)?;
+        Ok(())
+    })
+    .unwrap_or_revert();
+
+    call_versioned_contract::<()>(contract, None, EP_TRANSFER_FROM, args);
+}
+
 pub fn balance_of(contract: ContractPackageHash, address: Key) -> U256 {
 
     let args = RuntimeArgs::try_new(|args| {
