@@ -47,6 +47,12 @@ impl From<Error> for ApiError {
     }
 }
 
+#[derive(CLTyped, ToBytes, FromBytes, Debug)]
+pub struct AuctionBid {
+    pub bidder: Key,
+    pub price: U256,
+}
+
 // struct being used only for workaround to dictionary limitation (no remove function)
 #[derive(CLTyped, ToBytes, FromBytes, Debug)]
 pub struct Listing {
@@ -56,6 +62,7 @@ pub struct Listing {
     pub min_bid_price: U256,
     pub redemption_price: U256,
     pub auction_duration: U128,
+    pub active_bid: Option<AuctionBid>,
 }
 
 const EVENT_TYPE: &str = "event_type";

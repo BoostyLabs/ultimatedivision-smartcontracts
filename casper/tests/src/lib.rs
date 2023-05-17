@@ -361,6 +361,7 @@ mod tests {
             &mut context,
         );
 
+        let bidder_balance_after = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder.address));
         // NEXT OFFFER FLOW::::START
         let bidder_new = arbitrary_user(&mut context, 1);
         let price_new: U256 = offer_price + 10;
@@ -383,53 +384,19 @@ mod tests {
             cep47_hash,
             erc20_hash,
             bidder_new.address,
-            offer_price, 
+            price_new, 
             token_id
         );
         exec_deploy(&mut context, make_offer_deploy);
-        let bidder_new_balance_after = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder_new.address));
+
+        let bidder_balance_final = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder.address));
+        println!("VVV::bidder_balance_final {:?}", bidder_balance_final);
+
+        assert_eq!(bidder_balance_final, bidder_balance_after + offer_price);
+
         // NEXT OFFFER FLOW::::END
 
-        println!("VVV::bidder_balance_before {:?}", bidder_new_balance_before);
-        println!("VVV::bidder_balance_after {:?}", bidder_new_balance_after);
 
-        // NEXT OFFFER FLOW2::::START
-        let bidder_new2 = arbitrary_user(&mut context, 2);
-        let price_new2: U256 = offer_price + 20;
-        fill_purse_on_token_contract(
-            &mut context,
-            erc20_hash,
-            U256::one() * 10000,
-            Key::from(bidder_new2.address),
-        );
-        let bidder_new2_balance_before = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder_new2.address));
-        let approve_erc20_deploy = approve_erc20(
-            erc20_hash,
-            market_package_hash,
-            bidder_new2.address,
-            price_new2
-        );
-        exec_deploy(&mut context, approve_erc20_deploy);
-        let make_offer_deploy: engine_state::DeployItem = make_offer(
-            market_hash,
-            cep47_hash,
-            erc20_hash,
-            bidder_new2.address,
-            offer_price, 
-            token_id
-        );
-        exec_deploy(&mut context, make_offer_deploy);
-        let bidder_new2_balance_after = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder_new2.address));
-        let bidder_new_balance_final = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder_new.address));
-        // NEXT OFFFER FLOW2::::END
-
-        println!("VVV::bidder2_balance_before {:?}", bidder_new2_balance_before);
-        println!("VVV::bidder2_balance_after {:?}", bidder_new2_balance_after);
-        println!("VVV::bidder_new_balance_final {:?}", bidder_new_balance_final);
-
-        println!("VVV::bidder addr {:?}", bidder.address);
-        println!("VVV::bidder2 addr {:?}", bidder_new.address);
-        println!("VVV::bidder3 addr {:?}", bidder_new2.address);
 
 
 
