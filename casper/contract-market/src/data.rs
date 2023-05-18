@@ -2,11 +2,11 @@ use alloc::{
     string::{String, ToString},
     str,
     vec, vec::Vec,
-    collections::BTreeMap, format
+    collections::BTreeMap, 
 };
 
 use casper_contract::{
-    contract_api::{runtime, storage, system},
+    contract_api::{runtime, storage},
     unwrap_or_revert::UnwrapOrRevert,
 };
 
@@ -17,7 +17,6 @@ use casper_types::{
     ApiError, Key, URef, ContractHash, ContractPackageHash, CLTyped, U256, U128};
 
 use casper_types_derive::{CLTyped, FromBytes, ToBytes};
-use contract_util::erc20;
 
 use crate::{
     event::MarketEvent
@@ -39,6 +38,8 @@ pub enum Error {
     UnexpectedTransferAmount = 1010,
     OfferPriceLessThanMinBid = 1011,
     OfferPriceShouldBeGreaterThanPrevOffer = 1012,
+    OfferPermissionDenied = 1013,
+    OfferNotFound = 1014,
 }
 
 impl From<Error> for ApiError {
@@ -77,7 +78,9 @@ const REDEMPTION_PRICE: &str = "redemption_price";
 const AUCTION_DURATION: &str = "auction_duration";
 
 const LISTING_DICTIONARY: &str = "listings";
-const OFFER_DICTIONARY: &str = "offers";
+
+// vvvunused OFFER Functionality
+// const OFFER_DICTIONARY: &str = "offers";
 
 pub fn contract_package_hash() -> ContractPackageHash {
     let call_stacks = runtime::get_call_stack();
@@ -177,52 +180,55 @@ pub fn force_cancel_listing(nft_contract: &str, token_id: &str) -> () {
     storage::dictionary_put(dictionary_uref, &listing_id, None::<Listing>);
 }
 
-pub fn get_offers(offers_id: &str) -> (BTreeMap<Key, U256>, URef) {
-    let dictionary_uref = get_dictionary_uref(OFFER_DICTIONARY);
+// vvvunused OFFER Functionality
+// pub fn get_offers(offers_id: &str) -> (BTreeMap<Key, U256>, URef) {
+//     let dictionary_uref = get_dictionary_uref(OFFER_DICTIONARY);
 
-    let offers: BTreeMap<Key, U256> =
-        match storage::dictionary_get(dictionary_uref, &offers_id)  {
-            Ok(item) => match item {
-                None => BTreeMap::new(),
-                Some(offers) => offers,
-            },
-            Err(_error) => BTreeMap::new()
-        };
+//     let offers: BTreeMap<Key, U256> =
+//         match storage::dictionary_get(dictionary_uref, &offers_id)  {
+//             Ok(item) => match item {
+//                 None => BTreeMap::new(),
+//                 Some(offers) => offers,
+//             },
+//             Err(_error) => BTreeMap::new()
+//         };
 
-    return (offers, dictionary_uref);
-}
+//     return (offers, dictionary_uref);
+// }
 
-pub fn get_purse(purse_name: &str) -> URef {
-    let purse = if !runtime::has_key(&purse_name) {
-        let purse = system::create_purse();
-        runtime::put_key(&purse_name, purse.into());
-        purse
-    } else {
-        let destination_purse_key = runtime::get_key(&purse_name).unwrap_or_revert_with(
-            Error::OfferPurseRetrieval
-        );
-        match destination_purse_key.as_uref() {
-            Some(uref) => *uref,
-            None => runtime::revert(Error::OfferPurseRetrieval),
-        }
-    };
-    return purse;
-}
+// vvvunused PURSE Functionality
+// pub fn get_purse(purse_name: &str) -> URef {
+//     let purse = if !runtime::has_key(&purse_name) {
+//         let purse = system::create_purse();
+//         runtime::put_key(&purse_name, purse.into());
+//         purse
+//     } else {
+//         let destination_purse_key = runtime::get_key(&purse_name).unwrap_or_revert_with(
+//             Error::OfferPurseRetrieval
+//         );
+//         match destination_purse_key.as_uref() {
+//             Some(uref) => *uref,
+//             None => runtime::revert(Error::OfferPurseRetrieval),
+//         }
+//     };
+//     return purse;
+// }
 
-pub fn remove_offer(
-    nft_contract_string: &String, 
-    token_id: &String, 
-    bidder: &Key,
-    erc20_contract: ContractHash,
-    offer_price: U256
-) {
-    let offers_id: String = get_id(nft_contract_string, token_id);
-    let (mut offers, dictionary_uref): (BTreeMap<Key, U256>, URef) = get_offers(&offers_id);
-    offers.remove(&bidder);
+// vvvunused OFFER Functionality
+// pub fn remove_offer(
+//     nft_contract_string: &String, 
+//     token_id: &String, 
+//     bidder: &Key,
+//     erc20_contract: ContractHash,
+//     offer_price: U256
+// ) {
+//     let offers_id: String = get_id(nft_contract_string, token_id);
+//     let (mut offers, dictionary_uref): (BTreeMap<Key, U256>, URef) = get_offers(&offers_id);
+//     offers.remove(&bidder);
 
-    erc20::transfer_from_contract_to_recipient(erc20_contract, *bidder, offer_price);
-    storage::dictionary_put(dictionary_uref, &offers_id, offers);
-}
+//     erc20::transfer_from_contract_to_recipient(erc20_contract, *bidder, offer_price);
+//     storage::dictionary_put(dictionary_uref, &offers_id, offers);
+// }
 
 pub fn emit(event: &MarketEvent) {
     let push_event = match event {
