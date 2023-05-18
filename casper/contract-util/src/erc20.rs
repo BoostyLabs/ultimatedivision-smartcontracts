@@ -44,8 +44,6 @@ pub fn transfer(contract: ContractPackageHash, recepient: Key, amount: U256) {
 
 pub fn transfer_from_contract_to_recipient(contract: ContractHash, recepient: Key, amount: U256) {
 
-    let text = alloc::format!("recepient::: {:?}", recepient);
-    runtime::print(&text);
     let args = RuntimeArgs::try_new(|args| {
         args.insert(PARAM_RECIPIENT, recepient)?;
         args.insert(PARAM_AMOUNT, amount)?;

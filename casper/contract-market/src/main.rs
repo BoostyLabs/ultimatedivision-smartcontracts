@@ -208,9 +208,6 @@ pub extern "C" fn make_offer() -> () {
     if offer_price < _listing.min_bid_price {
         runtime::revert(Error::OfferPriceLessThanMinBid);
     }
-    // TODO: rebalance current previous_offer_price instead of error
-    let text = alloc::format!("recepient::: offer delete");
-    runtime::print(&text);
 
     match _listing.active_bid {
         Some(bid) => {
