@@ -44,7 +44,6 @@ mod interface {
 // vvvref: move out constants
 const NFT_CONTRACT_HASH_ARG: &str = "nft_contract_hash";
 const AUCTION_DEFAULT_DURATION: u16 = 10800;
-const ERC20_CONTRACT_ARG: &str = "erc20_contract";
 const TOKEN_ID_ARG: &str = "token_id";
 const MIN_BID_PRICE_ARG: &str = "min_bid_price";
 const OFFER_PRICE_ARG: &str = "offer_price";
@@ -412,7 +411,6 @@ fn get_entry_points() -> EntryPoints {
         "buy_listing",
         vec![
             Parameter::new(NFT_CONTRACT_HASH_ARG, String::cl_type()),
-            Parameter::new(ERC20_CONTRACT_ARG, ContractHash::cl_type()),
             Parameter::new(TOKEN_ID_ARG, String::cl_type()),
             Parameter::new(BUYER_PURSE_ARG, URef::cl_type()),
         ],
@@ -424,7 +422,6 @@ fn get_entry_points() -> EntryPoints {
         "make_offer",
         vec![
             Parameter::new(NFT_CONTRACT_HASH_ARG, String::cl_type()),
-            Parameter::new(ERC20_CONTRACT_ARG, ContractHash::cl_type()),
             Parameter::new(TOKEN_ID_ARG, String::cl_type()),
             Parameter::new(OFFER_PRICE_ARG, U256::cl_type()),
         ],
@@ -446,7 +443,6 @@ fn get_entry_points() -> EntryPoints {
         "accept_offer",
         vec![
             Parameter::new(NFT_CONTRACT_HASH_ARG, String::cl_type()),
-            Parameter::new(ERC20_CONTRACT_ARG, ContractHash::cl_type()),
             Parameter::new(TOKEN_ID_ARG, String::cl_type()),
         ],
         <()>::cl_type(),
@@ -457,7 +453,6 @@ fn get_entry_points() -> EntryPoints {
         "final_listing",
         vec![
             Parameter::new(NFT_CONTRACT_HASH_ARG, String::cl_type()),
-            Parameter::new(ERC20_CONTRACT_ARG, ContractHash::cl_type()),
             Parameter::new(TOKEN_ID_ARG, String::cl_type()),
         ],
         <()>::cl_type(),

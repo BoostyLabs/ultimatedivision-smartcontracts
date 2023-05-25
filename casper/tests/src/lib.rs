@@ -78,7 +78,6 @@ mod tests {
         let make_offer_deploy: engine_state::DeployItem = make_offer(
             market_hash,
             cep47_hash,
-            erc20_hash,
             bidder.address,
             offer_price, 
             token_id
@@ -237,7 +236,6 @@ mod tests {
         let buy_listing_deploy = buy_listing(
             market_hash, 
             cep47_hash,
-            erc20_hash,
             buyer.address,
             token_id
         );
@@ -381,7 +379,6 @@ mod tests {
         let make_offer_deploy: engine_state::DeployItem = make_offer(
             market_hash,
             cep47_hash,
-            erc20_hash,
             bidder_new.address,
             price_new, 
             token_id
@@ -434,7 +431,6 @@ mod tests {
         let accept_offer_deploy: engine_state::DeployItem = accept_offer(
             market_hash,
             cep47_hash,
-            erc20_hash,
             context.account.address,
             token_id
         );
@@ -491,7 +487,6 @@ mod tests {
         let final_listing_deploy: engine_state::DeployItem = final_listing(
             market_hash,
             cep47_hash,
-            erc20_hash,
             context.account.address,
             token_id
         );
@@ -557,7 +552,6 @@ mod tests {
         let final_listing_deploy: engine_state::DeployItem = final_listing(
             market_hash,
             cep47_hash,
-            erc20_hash,
             context.account.address,
             token_id
         );
@@ -760,7 +754,6 @@ mod tests {
         let buy_listing_deploy = buy_listing(
             market_hash, 
             cep47_hash,
-            erc20_hash,
             context.account.address,
             invalid_token_id
         );
@@ -833,7 +826,6 @@ mod tests {
         let buy_listing_deploy = buy_listing(
             market_hash, 
             cep47_hash,
-            erc20_hash,
             buyer.address,
             token_id
         );
@@ -901,7 +893,6 @@ mod tests {
         let make_offer_deploy: engine_state::DeployItem = make_offer(
             market_hash,
             cep47_hash,
-            erc20_hash,
             bidder.address,
             offer_price, 
             invalid_token_id
@@ -968,7 +959,6 @@ mod tests {
         let make_offer_deploy: engine_state::DeployItem = make_offer(
             market_hash,
             cep47_hash,
-            erc20_hash,
             bidder.address,
             offer_price, 
             token_id
@@ -1020,7 +1010,6 @@ mod tests {
         let make_offer_deploy: engine_state::DeployItem = make_offer(
             market_hash,
             cep47_hash,
-            erc20_hash,
             bidder.address,
             offer_price, 
             token_id
@@ -1076,7 +1065,6 @@ mod tests {
         make_offer(
             market_hash,
             cep47_hash,
-            erc20_hash,
             bidder.address,
             offer_price, 
             token_id
@@ -1129,7 +1117,6 @@ mod tests {
         let accept_offer_deploy: engine_state::DeployItem = accept_offer(
             market_hash,
             cep47_hash,
-            erc20_hash,
             context.account.address,
             token_id
         );
@@ -1188,7 +1175,6 @@ mod tests {
         let accept_offer_deploy: engine_state::DeployItem = accept_offer(
             market_hash,
             cep47_hash,
-            erc20_hash,
             arbitrary_user.address,
             token_id
         );
@@ -1225,7 +1211,6 @@ mod tests {
         let final_listing_deploy: engine_state::DeployItem = final_listing(
             market_hash,
             cep47_hash,
-            erc20_hash,
             arbitrary_user.address,
             token_id
         );

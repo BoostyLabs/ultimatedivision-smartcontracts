@@ -514,7 +514,6 @@ pub fn create_listing(
 pub fn make_offer(
     market_hash: ContractHash,
     cep47_hash: ContractHash,
-    erc20_hash: ContractHash,
     account_address: AccountHash,
     offer_price: U256,
     token_id: &str
@@ -526,7 +525,6 @@ pub fn make_offer(
             EP_MAKE_OFFER,
             runtime_args! {
                 "nft_contract_hash" => get_nft_contract_hash(cep47_hash),
-                "erc20_contract" => erc20_hash,
                 "token_id" => token_id,
                 "offer_price" => offer_price,
             },
@@ -537,7 +535,6 @@ pub fn make_offer(
 pub fn accept_offer(
     market_hash: ContractHash,
     cep47_hash: ContractHash,
-    erc20_hash: ContractHash,
     account_address: AccountHash,
     token_id: &str
 ) -> DeployItem {
@@ -548,7 +545,6 @@ pub fn accept_offer(
             EP_ACCEPT_OFFER,
             runtime_args! {
                 "nft_contract_hash" => get_nft_contract_hash(cep47_hash),
-                "erc20_contract" => erc20_hash,
                 "token_id" => token_id,
             },
         )
@@ -558,7 +554,6 @@ pub fn accept_offer(
 pub fn final_listing(
     market_hash: ContractHash,
     cep47_hash: ContractHash,
-    erc20_hash: ContractHash,
     account_address: AccountHash,
     token_id: &str
 ) -> DeployItem {
@@ -569,7 +564,6 @@ pub fn final_listing(
             EP_FINAL_LISTING,
             runtime_args! {
                 "nft_contract_hash" => get_nft_contract_hash(cep47_hash),
-                "erc20_contract" => erc20_hash,
                 "token_id" => token_id,
             },
         )
@@ -579,7 +573,6 @@ pub fn final_listing(
 pub fn buy_listing(
     market_hash: ContractHash,
     cep47_hash: ContractHash,
-    erc20_hash: ContractHash,
     account_address: AccountHash,
     token_id: &str
 ) -> DeployItem {
@@ -589,7 +582,6 @@ pub fn buy_listing(
             EP_BUY_LISTING,
             runtime_args! {
                 "nft_contract_hash" => get_nft_contract_hash(cep47_hash),
-                "erc20_contract" => erc20_hash,
                 "token_id" => token_id
             },
         )
