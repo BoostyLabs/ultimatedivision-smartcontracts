@@ -446,10 +446,6 @@ pub fn approve_erc20(
     amount: U256
 ) -> DeployItem {
 
-    println!("VVV-approve::spender {:?}", spender);
-    println!("VVV-approve::amount {:?}", amount);
-    println!("VVV-approve::account_address {:?}", account_address);
-
     simple_deploy_builder(account_address)
         .with_stored_session_hash(
             erc20_hash,

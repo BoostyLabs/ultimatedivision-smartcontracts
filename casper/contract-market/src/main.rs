@@ -22,8 +22,7 @@ use casper_contract::{
 };
 use casper_types::{
     contracts::{EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, NamedKeys},
-    runtime_args,
-    CLType, CLTyped, CLValue, ContractHash, Key, Parameter, RuntimeArgs, URef,
+    CLType, CLTyped, CLValue, ContractHash, Key, Parameter, URef,
     U128, U256, Group,
 };
 
@@ -310,11 +309,6 @@ pub extern "C" fn final_listing() -> () {
 
     let listing_finish_time = U128::as_u64(&_listing.auction_duration) + U256::as_u64(&_listing.created_time); 
 
-    let text = &alloc::format!("listing_finish_time {:?}", {listing_finish_time});
-    runtime::print(&text);
-    let text = &alloc::format!("current_time {:?}", current_time);
-    runtime::print(&text);
-
     if current_time < listing_finish_time {
         // vvv: uncomment!
         // revert(Error::ListingTimeNotFinished);
@@ -355,10 +349,6 @@ pub extern "C" fn final_listing() -> () {
 #[no_mangle]
 pub extern "C" fn set_commission_wallet() {
     let wallet: Key = runtime::get_named_arg(PARAM_COMMISSION_WALLET);
-
-    let text = &alloc::format!("VVV-walleth2 {:?}", wallet.to_formatted_string());
-    runtime::print(&text);
-
     uref::write(PARAM_COMMISSION_WALLET, wallet)
 }
 
@@ -381,16 +371,10 @@ pub extern "C" fn call() {
     let mut named_keys = NamedKeys::new();
 
     let erc20_hash: ContractHash = runtime::get_named_arg(PARAM_ERC20);
-    let text = &alloc::format!("VVV-erc20_hash {:?}", erc20_hash);
-    runtime::print(&text);
+    // let text = &alloc::format!("VVV-erc20_hash {:?}", erc20_hash);
+    // runtime::print(&text);
 
     let commission_wallet: Key = runtime::get_named_arg(PARAM_COMMISSION_WALLET);
-
-    let text = &alloc::format!("VVV-walleth1 {:?}", commission_wallet);
-    runtime::print(&text);
-
-    let text = &alloc::format!("VVV-commission_wallet {:?}", commission_wallet);
-    runtime::print(&text);
 
     let default_percent = storage::new_uref(U256::one() * 3);
     let default_erc20 = storage::new_uref(erc20_hash);

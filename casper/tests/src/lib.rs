@@ -4,7 +4,7 @@ pub mod utils;
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::{BTreeMap}, assert_eq, println};
+    use std::{collections::{BTreeMap}, assert_eq};
 
     use crate::{utils::{
         arbitrary_user, deploy_cep47,
@@ -27,10 +27,6 @@ mod tests {
         context: &mut TestContext
     ) -> UserAccount {
         let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
-        // vvvfix: duplicate?    
-
-        let seller_balance_before: U256 = query_balance(&mut context.builder, erc20_hash, &Key::from(context.account.address));
-        println!("VVV-inside {:?}", seller_balance_before);
 
         // 1. Owner: Approve NFT
         let approve_nft_deploy = approve_nft(
@@ -148,7 +144,7 @@ mod tests {
             _,
             market_hash,
             market_package_hash,
-            commission_wallet
+            _
         ) = init_environment();
         let token_id = "1";
 
@@ -169,8 +165,6 @@ mod tests {
         exec_deploy(&mut context, create_listing_deploy).expect_success();
 
         let res: BTreeMap<String, String> = query(&mut context.builder, market_hash, "latest_event");
-
-        println!("VVV::create_listing_test::res {:?}", res);
 
         assert_eq!(res.get("event_type").unwrap(), "market_listing_created");
         assert_eq!(res.get("contract_package_hash").unwrap(), &market_package_hash.to_string());
@@ -203,7 +197,7 @@ mod tests {
              _,
              market_hash,
              market_package_hash,
-             commission_wallet
+             _
         ) = init_environment();
         let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
         let token_id = "1";
@@ -294,7 +288,7 @@ mod tests {
              _,
              market_hash,
              market_package_hash,
-             commission_wallet
+             _
         ) = init_environment();
         let offer_price = U256::one() * 4;
         let token_id = "1";
@@ -316,7 +310,6 @@ mod tests {
         let res: BTreeMap<String, String> = query(&mut context.builder, market_hash, "latest_event");
         let market_balance = query_balance(&mut context.builder, erc20_hash, &Key::from(market_package_hash));
 
-        println!("VVV-res {:?}", res);
         assert_eq!(res.get("event_type").unwrap(), "market_offer_created");
         assert_eq!(res.get("contract_package_hash").unwrap(), &market_package_hash.to_string());
         assert_eq!(res.get("buyer").unwrap().to_string(), Key::Account(bidder.address).to_string());
@@ -355,7 +348,7 @@ mod tests {
              _,
              market_hash,
              market_package_hash,
-             commission_wallet
+             _
         ) = init_environment();
         let offer_price = U256::one() * 4;
         let token_id = "1";
@@ -398,8 +391,6 @@ mod tests {
         exec_deploy(&mut context, make_offer_deploy);
 
         let bidder_balance_final = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder.address));
-        println!("VVV::bidder_balance_final {:?}", bidder_balance_final);
-
         assert_eq!(bidder_balance_final, bidder_balance_after + offer_price);
 
         // NEXT OFFFER FLOW::::END
@@ -423,7 +414,7 @@ mod tests {
              _,
              market_hash,
              market_package_hash,
-             commission_wallet
+             _
         ) = init_environment();
         let offer_price = U256::one() * 4;
         let token_id = "1";
@@ -480,7 +471,7 @@ mod tests {
              _,
              market_hash,
              market_package_hash,
-             commission_wallet
+             _
         ) = init_environment();
         let offer_price = U256::one() * 4;
         let token_id = "1";
@@ -537,7 +528,7 @@ mod tests {
              _,
              market_hash,
              market_package_hash,
-             commission_wallet
+             _
         ) = init_environment();
         let token_id = "1";
         let min_bid_price: U256 = U256::one() * 3;
@@ -593,16 +584,16 @@ mod tests {
             1. Call "set_commission_wallet" entrypoint
             2. Assert that the signer is established
         */
-        let mut context = setup_context();
+        let context = setup_context();
 
         let (
             mut context,
-            erc20_hash,
             _,
-             cep47_hash,
+            _,
+             _,
              _,
              market_hash,
-             market_package_hash,
+             _,
              _
         ) = init_environment();
 
@@ -625,16 +616,16 @@ mod tests {
             1. Call "set_commission_wallet" entrypoint
             2. Assert that the signer is established
         */
-        let mut context = setup_context();
+        let context = setup_context();
 
         let (
             mut context,
-            erc20_hash,
             _,
-             cep47_hash,
+            _,
+             _,
              _,
              market_hash,
-             market_package_hash,
+             _,
              _
         ) = init_environment();
 
@@ -671,7 +662,7 @@ mod tests {
             _,
             market_hash,
             market_package_hash,
-            commission_wallet
+            _
         ) = init_environment();
         let token_id = "1";
         let approve_nft_deploy = approve_nft(
@@ -717,7 +708,7 @@ mod tests {
             _,
             market_hash,
             market_package_hash,
-            commission_wallet
+            _
         ) = init_environment();
         let token_id = "1";
         let approve_nft_deploy = approve_nft(
@@ -760,7 +751,7 @@ mod tests {
             _,
             market_hash,
             _,
-            commission_wallet
+            _
         ) = init_environment();
         let token_id = "1";
 
@@ -800,7 +791,7 @@ mod tests {
             _,
             market_hash,
             market_package_hash,
-            commission_wallet
+            _
         ) = init_environment();
 
         let invalid_token_id = "2";
@@ -854,7 +845,7 @@ mod tests {
              _,
              market_hash,
              market_package_hash,
-             commission_wallet
+             _
         ) = init_environment();
         let invalid_token_id = "333";
         let (_, redemption_price, _) = get_auction_data();
@@ -900,7 +891,7 @@ mod tests {
              _,
              market_hash,
              market_package_hash,
-             commission_wallet
+             _
         ) = init_environment();
         let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
         let token_id = "1";
@@ -974,7 +965,7 @@ mod tests {
              _,
              market_hash,
              market_package_hash,
-             commission_wallet
+             _
         ) = init_environment();
         let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
         let offer_price = U256::one() * 2;
@@ -1042,7 +1033,7 @@ mod tests {
              _,
              market_hash,
              market_package_hash,
-             commission_wallet
+             _
         ) = init_environment();
         let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
         let offer_price = U256::one() * 2;
@@ -1110,7 +1101,7 @@ mod tests {
              _,
              market_hash,
              market_package_hash,
-             commission_wallet
+             _
         ) = init_environment();
         let offer_price = U256::one() * 4;
         let token_id = "1";
@@ -1126,8 +1117,6 @@ mod tests {
             &mut context,
         );
 
-        let bidder_balance_before = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder.address));
-
         let make_offer_deploy: engine_state::DeployItem = make_offer(
             market_hash,
             cep47_hash,
@@ -1142,10 +1131,6 @@ mod tests {
         )));
         assert_eq!(error.to_string(), expected_error.to_string());
 
-        let bidder_balance_after = query_balance(&mut context.builder, erc20_hash, &Key::from(bidder.address));
-
-        println!("VVV::bidder_balance_before {:?}", bidder_balance_before);
-        println!("VVV::bidder_balance_after {:?}", bidder_balance_after);
     }
 
     #[test]
@@ -1168,7 +1153,7 @@ mod tests {
              _,
              market_hash,
              market_package_hash,
-             commission_wallet
+             _
         ) = init_environment();
         let offer_price = U256::one() * 50;
         let token_id = "1";
@@ -1205,13 +1190,13 @@ mod tests {
 
         let (
             mut context,
-            erc20_hash,
+            _,
             _,
              cep47_hash,
              _,
              market_hash,
              market_package_hash,
-             commission_wallet
+             _
         ) = init_environment();
         let (min_bid_price, redemption_price, auction_duration) = get_auction_data();
         let token_id = "1";
@@ -1272,7 +1257,7 @@ mod tests {
              _,
              market_hash,
              market_package_hash,
-             commission_wallet
+             _
         ) = init_environment();
         let offer_price = U256::one() * 4;
         let token_id = "1";
@@ -1318,7 +1303,7 @@ mod tests {
             1. Call "set_commission_wallet" entrypoint
             2. Assert that the signer is established
         */
-        let mut context = setup_context();
+        let context = setup_context();
 
         let (
             mut context,
