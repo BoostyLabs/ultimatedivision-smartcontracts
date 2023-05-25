@@ -7,7 +7,7 @@ mod tests {
     use std::{collections::{BTreeMap}, assert_eq, println};
 
     use crate::utils::{
-        arbitrary_user, deploy_market, deploy_cep47,
+        arbitrary_user, deploy_cep47,
         init_environment, deploy_erc20, execution_error,
         fill_purse_on_token_contract, exec_deploy, 
          setup_context, query, create_listing, approve_nft, buy_listing, get_auction_data, query_balance, mint_tokens, make_offer, accept_offer, UserAccount, TestContext, approve_erc20, final_listing
@@ -104,12 +104,6 @@ mod tests {
         deploy_erc20(&mut context.builder, context.account.address);
     }
 
-    #[test]
-    fn test_deploy_market() {
-        let mut context = setup_context();
-        deploy_market(&mut context.builder, context.account.address);
-    }
-
     // #[test]
     // fn verify_bridge_entry_poitns() {
         // let mut context = setup_context();
@@ -196,7 +190,7 @@ mod tests {
         let (
             mut context,
             erc20_hash,
-            erc20_package_hash,
+            _,
              cep47_hash,
              _,
              market_hash,
@@ -243,7 +237,7 @@ mod tests {
         let buy_listing_deploy = buy_listing(
             market_hash, 
             cep47_hash,
-            erc20_package_hash,
+            erc20_hash,
             buyer.address,
             token_id
         );
@@ -745,7 +739,7 @@ mod tests {
         let (
             mut context,
             erc20_hash,
-            erc20_package_hash,
+            _,
              cep47_hash,
              _,
              market_hash,
@@ -766,7 +760,7 @@ mod tests {
         let buy_listing_deploy = buy_listing(
             market_hash, 
             cep47_hash,
-            erc20_package_hash,
+            erc20_hash,
             context.account.address,
             invalid_token_id
         );
@@ -791,7 +785,7 @@ mod tests {
         let (
             mut context,
             erc20_hash,
-            erc20_package_hash,
+            _,
              cep47_hash,
              _,
              market_hash,
@@ -839,7 +833,7 @@ mod tests {
         let buy_listing_deploy = buy_listing(
             market_hash, 
             cep47_hash,
-            erc20_package_hash,
+            erc20_hash,
             buyer.address,
             token_id
         );

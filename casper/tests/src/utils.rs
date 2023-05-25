@@ -221,13 +221,16 @@ where
 pub fn deploy_market<S>(
     builder: &mut WasmTestBuilder<S>,
     account: AccountHash,
+    erc20_hash: ContractHash
 ) -> (ContractHash, ContractPackageHash)
 where
     S: StateProvider,
     EngineError: From<S::Error>,
     <S as StateProvider>::Error: Into<ExecError>,
 {
-    let deploy_args = runtime_args! {};
+    let deploy_args = runtime_args! {
+        "erc20_hash" => erc20_hash
+    };
 
     deploy_contract(
         builder,
@@ -271,7 +274,7 @@ pub fn init_environment() -> (
     let (
         market_hash, 
         market_package_hash
-    ) = deploy_market::<InMemoryGlobalState>(&mut context.builder, context.account.address);
+    ) = deploy_market::<InMemoryGlobalState>(&mut context.builder, context.account.address, erc20_hash);
 
     let mint_deploy = mint_tokens(
         cep47_hash, 
@@ -576,7 +579,7 @@ pub fn final_listing(
 pub fn buy_listing(
     market_hash: ContractHash,
     cep47_hash: ContractHash,
-    erc20_package_hash: ContractPackageHash,
+    erc20_hash: ContractHash,
     account_address: AccountHash,
     token_id: &str
 ) -> DeployItem {
@@ -586,7 +589,7 @@ pub fn buy_listing(
             EP_BUY_LISTING,
             runtime_args! {
                 "nft_contract_hash" => get_nft_contract_hash(cep47_hash),
-                "erc20_contract" => erc20_package_hash,
+                "erc20_contract" => erc20_hash,
                 "token_id" => token_id
             },
         )

@@ -252,7 +252,7 @@ pub fn transfer_nft(nft_contract: ContractHash, sender: Key, recipient: Key, tok
 //     let (mut offers, dictionary_uref): (BTreeMap<Key, U256>, URef) = get_offers(&offers_id);
 //     offers.remove(&bidder);
 
-//     erc20::transfer_from_contract_to_recipient(erc20_contract, *bidder, offer_price);
+//     erc20::transfer_contract_to_recipient(erc20_contract, *bidder, offer_price);
 //     storage::dictionary_put(dictionary_uref, &offers_id, offers);
 // }
 
