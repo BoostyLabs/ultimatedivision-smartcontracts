@@ -39,7 +39,7 @@ const CONTRACT_MARKET_BYTES: &[u8] = include_bytes!("../wasm/contract-market.was
 static DEPLOY_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 use crate::constants::{
-    TEST_ACCOUNT_BALANCE, TEST_BLOCK_TIME, TEST_ACCOUNT, PARAM_AMOUNT, PARAM_RECIPIENT, PARAM_NFT_NAME, PARAM_NFT_SYMBOL, PARAM_MARKET_CONTRACT_NAME, PARAM_NFT_CONTRACT_NAME, EP_MINT, EP_CREATE_LISTING, EP_APPROVE, EP_BUY_LISTING, EP_MAKE_OFFER, EP_ACCEPT_OFFER, EP_FINAL_LISTING
+    TEST_ACCOUNT_BALANCE, TEST_BLOCK_TIME, TEST_ACCOUNT, PARAM_AMOUNT, PARAM_RECIPIENT, PARAM_NFT_NAME, PARAM_NFT_SYMBOL, PARAM_MARKET_CONTRACT_NAME, PARAM_NFT_CONTRACT_NAME, EP_MINT, EP_CREATE_LISTING, EP_APPROVE, EP_BUY_LISTING, EP_MAKE_OFFER, EP_ACCEPT_OFFER, EP_FINAL_LISTING, EP_SET_COMMISSION_WALLET, PARAM_COMMISSION_WALLET, PARAM_STABLE_COMMISSION_PERCENT, EP_SET_STABLE_COMMISSION_PERCENT
 };
 pub type Meta = BTreeMap<String, String>;
 pub type TokenId = U256;
@@ -221,7 +221,8 @@ where
 pub fn deploy_market<S>(
     builder: &mut WasmTestBuilder<S>,
     account: AccountHash,
-    erc20_hash: ContractHash
+    erc20_hash: ContractHash,
+    commission_wallet: Key
 ) -> (ContractHash, ContractPackageHash)
 where
     S: StateProvider,
@@ -229,7 +230,8 @@ where
     <S as StateProvider>::Error: Into<ExecError>,
 {
     let deploy_args = runtime_args! {
-        "erc20_hash" => erc20_hash
+        "erc20_hash" => erc20_hash,
+        "commission_wallet" => commission_wallet
     };
 
     deploy_contract(
@@ -250,6 +252,12 @@ pub fn balance_of(contract: ContractPackageHash, address: Key) -> U256 {
     call_versioned_contract::<U256>(contract, None, "balance_of", args)
 }
 
+pub fn get_commission_wallet(context: &mut TestContext, unique_id: u8) -> Key {
+    let commission_wallet_account = arbitrary_user( context, unique_id);
+    let commission_wallet = Key::from(commission_wallet_account.address);
+    commission_wallet
+}
+
 pub fn init_environment() -> (
     TestContext,
     ContractHash,
@@ -258,9 +266,11 @@ pub fn init_environment() -> (
     ContractPackageHash,
     ContractHash,
     ContractPackageHash,
+    Key,
 ) {
     let mut context = setup_context();
 
+    let commission_wallet = get_commission_wallet(&mut context, 100);
     let (
         erc20_hash, 
         erc20_package_hash
@@ -274,7 +284,12 @@ pub fn init_environment() -> (
     let (
         market_hash, 
         market_package_hash
-    ) = deploy_market::<InMemoryGlobalState>(&mut context.builder, context.account.address, erc20_hash);
+    ) = deploy_market::<InMemoryGlobalState>(
+        &mut context.builder,
+        context.account.address,
+        erc20_hash,
+        commission_wallet
+    );
 
     let mint_deploy = mint_tokens(
         cep47_hash, 
@@ -291,6 +306,7 @@ pub fn init_environment() -> (
         cep47_package_hash,
         market_hash,
         market_package_hash,
+        commission_wallet
     )
 }
 
@@ -588,6 +604,39 @@ pub fn buy_listing(
         .build()
 }
 
+
+pub fn set_commission_wallet(
+    market_hash: ContractHash,
+    account_address: AccountHash,
+    commission_wallet: Key,
+) -> DeployItem {
+    simple_deploy_builder(account_address)
+        .with_stored_session_hash(
+            market_hash,
+            EP_SET_COMMISSION_WALLET,
+            runtime_args! {
+                PARAM_COMMISSION_WALLET => commission_wallet,
+            },
+        )
+        .build()
+}
+
+pub fn set_stable_commission_percent(
+    market_hash: ContractHash,
+    account_address: AccountHash,
+    commission_percent: U256,
+) -> DeployItem {
+    simple_deploy_builder(account_address)
+        .with_stored_session_hash(
+            market_hash,
+            EP_SET_STABLE_COMMISSION_PERCENT,
+            runtime_args! {
+                PARAM_STABLE_COMMISSION_PERCENT => commission_percent,
+            },
+        )
+        .build()
+}
+
 pub fn get_auction_data() -> (U256, U256, U256) {
     let min_bid_price = U256::one() * 3;
     let redemption_price = U256::one() * 10;
@@ -811,6 +860,18 @@ pub fn exec_deploy(
             ExecuteRequestBuilder::from_deploy_item(deploy_item)
                 .with_block_time(TEST_BLOCK_TIME) // tim: << return value of runtime::get_blocktime() is set here per-deploy
                 .build(),
+        )
+        .commit()
+}
+
+pub fn get_context(
+    context: &mut TestContext,
+    deploy_item: DeployItem,
+) -> &mut WasmTestBuilder<InMemoryGlobalState> {
+    context
+        .builder
+        .exec(
+            ExecuteRequestBuilder::from_deploy_item(deploy_item).build(),
         )
         .commit()
 }

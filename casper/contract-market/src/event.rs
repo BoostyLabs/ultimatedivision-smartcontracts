@@ -32,12 +32,13 @@ pub enum MarketEvent {
         token_id: String,
         price: U256
     },
-    OfferWithdraw {
-        package: ContractPackageHash,
-        buyer: Key,
-        nft_contract: String,
-        token_id: String
-    },
+    // vvvunused
+    // OfferWithdraw {
+    //     package: ContractPackageHash,
+    //     buyer: Key,
+    //     nft_contract: String,
+    //     token_id: String
+    // },
     OfferAccepted {
         package: ContractPackageHash,
         seller: Key,

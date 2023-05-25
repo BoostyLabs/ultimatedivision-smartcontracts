@@ -41,6 +41,7 @@ pub enum Error {
     OfferPermissionDenied = 1013,
     OfferNotFound = 1014,
     ListingTimeNotFinished = 1015,
+    InvalidCommissionPercent = 1016
 }
 
 impl From<Error> for ApiError {
@@ -320,20 +321,21 @@ pub fn emit(event: &MarketEvent) {
             param.insert(EVENT_TYPE, "market_offer_created".to_string());
             param
         },
-        MarketEvent::OfferWithdraw {
-            package,
-            buyer,
-            nft_contract,
-            token_id
-        } => {
-            let mut param = BTreeMap::new();
-            param.insert(CONTRACT_PACKAGE_HASH, package.to_string());
-            param.insert(BUYER, buyer.to_string());
-            param.insert(NFT_CONTRACT, nft_contract.to_string());
-            param.insert(TOKEN_ID, token_id.to_string());
-            param.insert(EVENT_TYPE, "market_offer_withdraw".to_string());
-            param
-        },
+        // vvvunused:
+        // MarketEvent::OfferWithdraw {
+        //     package,
+        //     buyer,
+        //     nft_contract,
+        //     token_id
+        // } => {
+        //     let mut param = BTreeMap::new();
+        //     param.insert(CONTRACT_PACKAGE_HASH, package.to_string());
+        //     param.insert(BUYER, buyer.to_string());
+        //     param.insert(NFT_CONTRACT, nft_contract.to_string());
+        //     param.insert(TOKEN_ID, token_id.to_string());
+        //     param.insert(EVENT_TYPE, "market_offer_withdraw".to_string());
+        //     param
+        // },
         MarketEvent::OfferAccepted {
             package,
             seller,

@@ -15,7 +15,7 @@ use alloc::{
 
 use casper_contract::{
     contract_api::{
-        runtime::{self},
+        runtime::{self, revert},
         storage,
     },
     unwrap_or_revert::UnwrapOrRevert,
@@ -55,6 +55,7 @@ const GROUP_OPERATOR: &str = "operator";
 const NK_ACCESS_UREF: &str = "market_contract_uref";
 
 const PARAM_ERC20: &str = "erc20_hash";
+const PARAM_COMMISSION_WALLET: &str = "commission_wallet";
 const PARAM_STABLE_COMMISSION_PERCENT: &str = "stable_commission_percent";
 
 // vvvunused OFFER functionality
@@ -79,19 +80,19 @@ pub extern "C" fn create_listing() -> () {
     let current_time: u64 = runtime::get_blocktime().into();
 
     if redemption_price.le(&min_bid_price) {
-        runtime::revert(Error::RedemptionPriceLowerThanMinBid);
+        revert(Error::RedemptionPriceLowerThanMinBid);
     }
 
     if auction_duration.lt(&(U128::one() * AUCTION_DEFAULT_DURATION)) {
-        runtime::revert(Error::AuctionInvalidDuration);
+        revert(Error::AuctionInvalidDuration);
     }
 
     if token_owner != get_token_owner(nft_contract_hash, &token_id).unwrap() {
-        runtime::revert(Error::PermissionDenied);
+        revert(Error::PermissionDenied);
     }
 
     if !transfer_approved(nft_contract_hash, &token_id, token_owner) {
-        runtime::revert(Error::NeedsTransferApproval);
+        revert(Error::NeedsTransferApproval);
     }
 
 
@@ -140,7 +141,7 @@ pub fn buy_listing() -> () {
     let buyer_balance = erc20::balance_of(erc20_hash, buyer);
 
     if buyer_balance < _listing.redemption_price {
-        runtime::revert(Error::BalanceInsufficient);
+        revert(Error::BalanceInsufficient);
     }
 
     erc20::transfer_from(
@@ -203,13 +204,13 @@ pub extern "C" fn make_offer() -> () {
     let self_contract_key: Key = self_contract_package.into();
 
     if offer_price < _listing.min_bid_price {
-        runtime::revert(Error::OfferPriceLessThanMinBid);
+        revert(Error::OfferPriceLessThanMinBid);
     }
 
     match _listing.active_bid {
         Some(bid) => {
             if offer_price <= bid.price {
-                runtime::revert(Error::OfferPriceShouldBeGreaterThanPrevOffer);
+                revert(Error::OfferPriceShouldBeGreaterThanPrevOffer);
             }
             erc20::transfer_contract_to_recipient(erc20_hash, bid.bidder, bid.price);
         }
@@ -274,7 +275,7 @@ pub extern "C" fn accept_offer() -> () {
         Some(bid) => {
 
             if _listing.seller != seller {
-                runtime::revert(Error::OfferPermissionDenied);
+                revert(Error::OfferPermissionDenied);
             }
             transfer_nft(nft_contract_hash, seller, bid.bidder, token_ids);
             erc20::transfer_contract_to_recipient(erc20_hash, seller, bid.price);
@@ -289,7 +290,7 @@ pub extern "C" fn accept_offer() -> () {
                 price: bid.price,
             });
         }
-        None => runtime::revert(Error::OfferNotFound),
+        None => revert(Error::OfferNotFound),
     }
 }
 
@@ -316,7 +317,7 @@ pub extern "C" fn final_listing() -> () {
 
     if current_time < listing_finish_time {
         // vvv: uncomment!
-        // runtime::revert(Error::ListingTimeNotFinished);
+        // revert(Error::ListingTimeNotFinished);
     }
 
     remove_listing(&nft_contract_string, &token_id);
@@ -348,6 +349,31 @@ pub extern "C" fn final_listing() -> () {
 
 }
 
+/// Manually set signer
+///
+/// Call context:
+#[no_mangle]
+pub extern "C" fn set_commission_wallet() {
+    let wallet: Key = runtime::get_named_arg(PARAM_COMMISSION_WALLET);
+
+    let text = &alloc::format!("VVV-walleth2 {:?}", wallet.to_formatted_string());
+    runtime::print(&text);
+
+    uref::write(PARAM_COMMISSION_WALLET, wallet)
+}
+
+#[no_mangle]
+pub fn set_stable_commission_percent() {
+    let value: U256 = runtime::get_named_arg(PARAM_STABLE_COMMISSION_PERCENT);
+
+    if value > U256::one() * 50 {
+        revert(Error::InvalidCommissionPercent);
+    }
+
+    uref::write(PARAM_STABLE_COMMISSION_PERCENT, value)
+}
+
+
 #[no_mangle]
 pub extern "C" fn call() {
 
@@ -355,17 +381,29 @@ pub extern "C" fn call() {
     let mut named_keys = NamedKeys::new();
 
     let erc20_hash: ContractHash = runtime::get_named_arg(PARAM_ERC20);
-    // let text = &alloc::format!("VVV-erc20 {:?}", erc20_hash);
-    // runtime::print(&text);
+    let text = &alloc::format!("VVV-erc20_hash {:?}", erc20_hash);
+    runtime::print(&text);
+
+    let commission_wallet: Key = runtime::get_named_arg(PARAM_COMMISSION_WALLET);
+
+    let text = &alloc::format!("VVV-walleth1 {:?}", commission_wallet);
+    runtime::print(&text);
+
+    let text = &alloc::format!("VVV-commission_wallet {:?}", commission_wallet);
+    runtime::print(&text);
 
     let default_percent = storage::new_uref(U256::one() * 3);
     let default_erc20 = storage::new_uref(erc20_hash);
+    let default_commission_wallet = storage::new_uref(commission_wallet);
 
     let default_percent_key_name = String::from(PARAM_STABLE_COMMISSION_PERCENT);
     named_keys.insert(default_percent_key_name, Key::URef(default_percent));
 
-    let signer_key = String::from(PARAM_ERC20);
-    named_keys.insert(signer_key, Key::URef(default_erc20));
+    let erc20_hash: String = String::from(PARAM_ERC20);
+    named_keys.insert(erc20_hash, Key::URef(default_erc20));
+
+    let wallet_key = String::from(PARAM_COMMISSION_WALLET);
+    named_keys.insert(wallet_key, Key::URef(default_commission_wallet));
 
     storage::create_contract_user_group(
         contract_package_hash, 
@@ -467,9 +505,28 @@ fn get_entry_points() -> EntryPoints {
         EntryPointType::Contract,
     ));
 
+    entry_points.add_entry_point(EntryPoint::new(
+        "set_commission_wallet",
+        vec![Parameter::new(PARAM_COMMISSION_WALLET, Key::cl_type())],
+        <()>::cl_type(),
+        operator_access(),
+        EntryPointType::Contract,
+    ));
+    entry_points.add_entry_point(EntryPoint::new(
+        "set_stable_commission_percent",
+        vec![Parameter::new(
+            PARAM_STABLE_COMMISSION_PERCENT,
+            U256::cl_type(),
+        )],
+        <()>::cl_type(),
+        operator_access(),
+        EntryPointType::Contract,
+    ));
+
     entry_points
 }
 
 // vvvrev: add commission logic
 // vvvrev: hardcode erc20 contract?
+// vvvrev: remove approval
 // vvvrev: pass contract as bytes - how to?
