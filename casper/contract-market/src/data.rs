@@ -2,7 +2,7 @@ use alloc::{
     string::{String, ToString},
     str,
     vec, vec::Vec,
-    collections::BTreeMap, 
+    collections::BTreeMap, borrow::ToOwned, 
 };
 
 use casper_contract::{
@@ -19,7 +19,7 @@ use casper_types::{
 use casper_types_derive::{CLTyped, FromBytes, ToBytes};
 
 use crate::{
-    event::MarketEvent
+    event::MarketEvent, NFT_CONTRACT_HASH_ARG, TOKEN_ID_ARG
 };
 
 /// An error enum which can be converted to a `u16` so it can be returned as an `ApiError::User`.
@@ -40,6 +40,7 @@ pub enum Error {
     OfferPriceShouldBeGreaterThanPrevOffer = 1012,
     OfferPermissionDenied = 1013,
     OfferNotFound = 1014,
+    ListingTimeNotFinished = 1015,
 }
 
 impl From<Error> for ApiError {
@@ -64,6 +65,7 @@ pub struct Listing {
     pub redemption_price: U256,
     pub auction_duration: U128,
     pub active_bid: Option<AuctionBid>,
+    pub created_time: U256
 }
 
 const EVENT_TYPE: &str = "event_type";
@@ -76,6 +78,7 @@ const LISTING_ID: &str = "listing_id";
 const MIN_BID_PRICE: &str = "min_bid_price";
 const REDEMPTION_PRICE: &str = "redemption_price";
 const AUCTION_DURATION: &str = "auction_duration";
+const CREATED_TIME: &str = "created_time";
 
 const LISTING_DICTIONARY: &str = "listings";
 
@@ -174,10 +177,33 @@ pub fn get_listing_dictionary() -> URef {
 }
 
 // use when it doesn't matter if listing exists or not & no event needed
-pub fn force_cancel_listing(nft_contract: &str, token_id: &str) -> () {
+pub fn remove_listing(nft_contract: &str, token_id: &str) -> () {
     let listing_id: String = get_id(&nft_contract, &token_id);
     let dictionary_uref = get_dictionary_uref(LISTING_DICTIONARY);
     storage::dictionary_put(dictionary_uref, &listing_id, None::<Listing>);
+}
+
+pub fn get_initial_args() -> (Key, String, ContractHash, String) {
+    let bidder = Key::Account(runtime::get_caller());
+    let nft_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
+    let token_id: String = runtime::get_named_arg(TOKEN_ID_ARG);
+    let nft_contract_hash: ContractHash =
+    ContractHash::from_formatted_str(&nft_contract_string).unwrap();
+
+    (bidder, nft_contract_string, nft_contract_hash, token_id)
+}
+
+pub fn transfer_nft(nft_contract: ContractHash, sender: Key, recipient: Key, token_ids: Vec<U256>) {
+    runtime::call_contract::<()>(
+        nft_contract,
+        "transfer_from",
+        runtime_args! {
+          "sender" => sender,
+          "recipient" => recipient,
+          "token_ids" => token_ids,
+        },
+    );
+
 }
 
 // vvvunused OFFER Functionality
@@ -240,7 +266,8 @@ pub fn emit(event: &MarketEvent) {
             listing_id,
             min_bid_price,
             redemption_price,
-            auction_duration
+            auction_duration,
+            created_time,
         } => {
             let mut param = BTreeMap::new();
             param.insert(CONTRACT_PACKAGE_HASH, package.to_string());
@@ -251,6 +278,7 @@ pub fn emit(event: &MarketEvent) {
             param.insert(MIN_BID_PRICE, min_bid_price.to_string());
             param.insert(REDEMPTION_PRICE, redemption_price.to_string());
             param.insert(AUCTION_DURATION, auction_duration.to_string());
+            param.insert(CREATED_TIME, created_time.to_string());
             param.insert(EVENT_TYPE, "market_listing_created".to_string());
             param
         }
@@ -322,6 +350,20 @@ pub fn emit(event: &MarketEvent) {
             param.insert(TOKEN_ID, token_id.to_string());
             param.insert(REDEMPTION_PRICE, price.to_string());
             param.insert(EVENT_TYPE, "market_offer_accepted".to_string());
+            param
+        },
+        MarketEvent::ListingFinishedWithoutOffer {
+            package,
+            seller,
+            nft_contract,
+            token_id,
+        } => {
+            let mut param = BTreeMap::new();
+            param.insert(CONTRACT_PACKAGE_HASH, package.to_string());
+            param.insert(SELLER, seller.to_string());
+            param.insert(NFT_CONTRACT, nft_contract.to_string());
+            param.insert(TOKEN_ID, token_id.to_string());
+            param.insert(EVENT_TYPE, "market_listing_finished_without_offer".to_string());
             param
         }
     };

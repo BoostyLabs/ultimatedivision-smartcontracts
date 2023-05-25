@@ -1,5 +1,5 @@
 use casper_contract::{
-    contract_api::runtime::{call_versioned_contract, call_contract, self}, unwrap_or_revert::UnwrapOrRevert,
+    contract_api::runtime::{call_versioned_contract, call_contract}, unwrap_or_revert::UnwrapOrRevert,
 };
 use casper_types::{ContractPackageHash, Key, RuntimeArgs, U256, ContractHash};
 use alloc::string::String;
@@ -92,29 +92,14 @@ pub fn balance_of(contract: ContractPackageHash, address: Key) -> U256 {
 }
 
 
-pub fn name(contract: ContractPackageHash, address: Key) -> String {
-    
-    let args = RuntimeArgs::try_new(|args| {
-        Ok(())
-    })
-    .unwrap_or_revert();
+pub fn name(contract: ContractPackageHash) -> String {
     call_versioned_contract::<String>(contract, None, EP_NAME, RuntimeArgs::new())
 }
 
-pub fn symbol(contract: ContractPackageHash, address: Key) -> String {
-    
-    let args = RuntimeArgs::try_new(|args| {
-        Ok(())
-    })
-    .unwrap_or_revert();
+pub fn symbol(contract: ContractPackageHash) -> String {
     call_versioned_contract::<String>(contract, None, EP_SYMBOL, RuntimeArgs::new())
 }
 
-pub fn total_supply(contract: ContractPackageHash, address: Key) -> U256 {
-    
-    let args = RuntimeArgs::try_new(|args| {
-        Ok(())
-    })
-    .unwrap_or_revert();
+pub fn total_supply(contract: ContractPackageHash) -> U256 {
     call_versioned_contract::<U256>(contract, None, EP_TOTAL_SUPPLY, RuntimeArgs::new())
 }

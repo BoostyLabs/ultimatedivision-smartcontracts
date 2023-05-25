@@ -14,8 +14,7 @@ use casper_erc20::{
     },
     Address, ERC20,
 };
-use casper_types::{contracts::NamedKeys, CLValue, Key, U256};
-use verifier::Verifier as _Verifier;
+use casper_types::{CLValue, U256};
 
 #[derive(Default)]
 struct Verifier {}
@@ -105,7 +104,6 @@ pub extern "C" fn burn() {
 
 #[no_mangle]
 fn call() {
-    let mut named_keys = NamedKeys::new();
     // verifier::add_key(&mut named_keys, key);
     let name: String = runtime::get_named_arg("name");
     let symbol: String = runtime::get_named_arg("symbol");

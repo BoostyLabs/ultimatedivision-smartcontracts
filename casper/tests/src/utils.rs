@@ -39,7 +39,7 @@ const CONTRACT_MARKET_BYTES: &[u8] = include_bytes!("../wasm/contract-market.was
 static DEPLOY_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 use crate::constants::{
-    TEST_ACCOUNT_BALANCE, TEST_BLOCK_TIME, TEST_ACCOUNT, PARAM_AMOUNT, PARAM_RECIPIENT, PARAM_NFT_NAME, PARAM_NFT_SYMBOL, PARAM_MARKET_CONTRACT_NAME, PARAM_NFT_CONTRACT_NAME, EP_MINT, EP_CREATE_LISTING, EP_APPROVE, EP_BUY_LISTING, EP_MAKE_OFFER, EP_ACCEPT_OFFER
+    TEST_ACCOUNT_BALANCE, TEST_BLOCK_TIME, TEST_ACCOUNT, PARAM_AMOUNT, PARAM_RECIPIENT, PARAM_NFT_NAME, PARAM_NFT_SYMBOL, PARAM_MARKET_CONTRACT_NAME, PARAM_NFT_CONTRACT_NAME, EP_MINT, EP_CREATE_LISTING, EP_APPROVE, EP_BUY_LISTING, EP_MAKE_OFFER, EP_ACCEPT_OFFER, EP_FINAL_LISTING
 };
 pub type Meta = BTreeMap<String, String>;
 pub type TokenId = U256;
@@ -543,6 +543,27 @@ pub fn accept_offer(
         .with_stored_session_hash(
             market_hash,
             EP_ACCEPT_OFFER,
+            runtime_args! {
+                "nft_contract_hash" => get_nft_contract_hash(cep47_hash),
+                "erc20_contract" => erc20_hash,
+                "token_id" => token_id,
+            },
+        )
+        .build()
+}
+
+pub fn final_listing(
+    market_hash: ContractHash,
+    cep47_hash: ContractHash,
+    erc20_hash: ContractHash,
+    account_address: AccountHash,
+    token_id: &str
+) -> DeployItem {
+
+    simple_deploy_builder(account_address)
+        .with_stored_session_hash(
+            market_hash,
+            EP_FINAL_LISTING,
             runtime_args! {
                 "nft_contract_hash" => get_nft_contract_hash(cep47_hash),
                 "erc20_contract" => erc20_hash,

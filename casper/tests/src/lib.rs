@@ -10,7 +10,7 @@ mod tests {
         arbitrary_user, deploy_market, deploy_cep47,
         init_environment, deploy_erc20, execution_error,
         fill_purse_on_token_contract, exec_deploy, 
-         setup_context, query, create_listing, approve_nft, buy_listing, get_auction_data, query_balance, mint_tokens, make_offer, accept_offer, UserAccount, TestContext, approve_erc20
+         setup_context, query, create_listing, approve_nft, buy_listing, get_auction_data, query_balance, mint_tokens, make_offer, accept_offer, UserAccount, TestContext, approve_erc20, final_listing
     };
     use casper_execution_engine::core::{engine_state, execution};
     use casper_types::{U256, Key, ApiError, ContractPackageHash, ContractHash};
@@ -311,6 +311,7 @@ mod tests {
 
 
         let res: BTreeMap<String, String> = query(&mut context.builder, market_hash, "latest_event");
+        let market_balance = query_balance(&mut context.builder, erc20_hash, &Key::from(market_package_hash));
 
         println!("VVV-res {:?}", res);
         assert_eq!(res.get("event_type").unwrap(), "market_offer_created");
@@ -319,8 +320,7 @@ mod tests {
         assert_eq!(res.get("nft_contract").unwrap(), &cep47_hash.to_formatted_string());
         assert_eq!(res.get("token_id").unwrap(), &token_id);
         assert_eq!(res.get("redemption_price").unwrap(), &offer_price.to_string());
-        // vvvrev: check bidder balance
-        // vvvrev: check contract balance
+        assert_eq!(market_balance, offer_price);
 
         // let make_offer_deploy: engine_state::DeployItem = make_offer(
         //     market_hash,
@@ -407,8 +407,9 @@ mod tests {
         /*
             Scenario:
             1. Call "create listing"
-            2. Call "make_offer" entrypoint to make an offer
-            3. Assert success
+            2. Call "make_offer" flow
+            3. Accept offer
+            4. Assert success
         */
 
         let (
@@ -455,8 +456,131 @@ mod tests {
         assert_eq!(res.get("token_id").unwrap(), &token_id);
         assert_eq!(res.get("redemption_price").unwrap(), &offer_price.to_string());
         assert_eq!(seller_balance_after, seller_balance_before + offer_price);
+        // vvvrev: check nft balances and contract list dictionary
     }
 
+    #[test]
+    fn final_listing_test_with_bid() {
+        /*
+            Scenario:
+            1. Call "create listing"
+            2. Call "make_offer" flow
+            3. Final auction
+            4. Assert success
+        */
+
+        let (
+            mut context,
+            erc20_hash,
+            _,
+             cep47_hash,
+             _,
+             market_hash,
+             market_package_hash
+        ) = init_environment();
+        let offer_price = U256::one() * 4;
+        let token_id = "1";
+
+        let bidder = make_offer_flow(
+            market_package_hash, 
+            market_hash,
+            cep47_hash,
+            erc20_hash,
+            token_id,
+            offer_price,
+            offer_price,
+            &mut context,
+        );
+
+        let seller_balance_before = query_balance(&mut context.builder, erc20_hash, &Key::from(context.account.address));
+
+        let final_listing_deploy: engine_state::DeployItem = final_listing(
+            market_hash,
+            cep47_hash,
+            erc20_hash,
+            context.account.address,
+            token_id
+        );
+        exec_deploy(&mut context, final_listing_deploy).expect_success();
+
+        let seller_balance_after = query_balance(&mut context.builder, erc20_hash, &Key::from(context.account.address));
+        let res: BTreeMap<String, String> = query(&mut context.builder, market_hash, "latest_event");
+        assert_eq!(res.get("event_type").unwrap(), "market_offer_accepted");
+        assert_eq!(res.get("contract_package_hash").unwrap(), &market_package_hash.to_string());
+        assert_eq!(res.get("buyer").unwrap().to_string(), Key::Account(bidder.address).to_string());
+        assert_eq!(res.get("seller").unwrap().to_string(), Key::Account(context.account.address).to_string());
+        assert_eq!(res.get("nft_contract").unwrap(), &cep47_hash.to_formatted_string());
+        assert_eq!(res.get("token_id").unwrap(), &token_id);
+        assert_eq!(res.get("redemption_price").unwrap(), &offer_price.to_string());
+        assert_eq!(seller_balance_after, seller_balance_before + offer_price);
+        // vvvrev: check nft balances and contract list dictionary
+    }
+
+    #[test]
+    fn final_listing_test_with_no_bid() {
+        /*
+            Scenario:
+            1. Call "create listing"
+            2. Call "make_offer" flow
+            3. Final auction
+            4. Assert success
+        */
+
+        let (
+            mut context,
+            erc20_hash,
+            _,
+             cep47_hash,
+             _,
+             market_hash,
+             market_package_hash
+        ) = init_environment();
+        let token_id = "1";
+        let min_bid_price: U256 = U256::one() * 3;
+        let redemption_price: U256 = U256::one() * 10;
+        let auction_duration: U256 = U256::one() * 86_400;
+
+
+        let approve_nft_deploy = approve_nft(
+            cep47_hash, market_package_hash,  context.account.address, vec![U256::one()]
+        );
+        exec_deploy(&mut context, approve_nft_deploy).expect_success();
+
+        let create_listing_deploy = create_listing(
+            market_hash, 
+            cep47_hash,
+            context.account.address,
+            min_bid_price, 
+            redemption_price,
+            auction_duration,
+            token_id
+        );
+
+        exec_deploy(&mut context, create_listing_deploy).expect_success();
+
+        let seller_balance_before = query_balance(&mut context.builder, erc20_hash, &Key::from(context.account.address));
+
+        let final_listing_deploy: engine_state::DeployItem = final_listing(
+            market_hash,
+            cep47_hash,
+            erc20_hash,
+            context.account.address,
+            token_id
+        );
+        exec_deploy(&mut context, final_listing_deploy).expect_success();
+
+        let seller_balance_after = query_balance(&mut context.builder, erc20_hash, &Key::from(context.account.address));
+        let res: BTreeMap<String, String> = query(&mut context.builder, market_hash, "latest_event");
+
+        assert_eq!(res.get("event_type").unwrap(), "market_listing_finished_without_offer");
+        assert_eq!(res.get("contract_package_hash").unwrap(), &market_package_hash.to_string());
+        assert_eq!(res.get("seller").unwrap().to_string(), Key::Account(context.account.address).to_string());
+        assert_eq!(res.get("nft_contract").unwrap(), &cep47_hash.to_formatted_string());
+        assert_eq!(res.get("token_id").unwrap(), &token_id);
+        assert_eq!(seller_balance_before, seller_balance_after);
+
+
+    }
     // vvvcurrent: make_offer add negative cases
     // --------------------------------------------------- NEGATIVE CASES: ----------------------------------------------------  //
 
@@ -1082,4 +1206,40 @@ mod tests {
         assert_eq!(error.to_string(), expected_error.to_string());
 
     }
+
+    #[test]
+    fn final_listing_test_permission_denied() { // vvvrev
+        /*
+            Scenario:
+            1. Call "final_listing" entrypoint
+            2. Assert fail
+        */
+
+        let (
+            mut context,
+            erc20_hash,
+            _,
+             cep47_hash,
+             _,
+             market_hash,
+             _
+        ) = init_environment();
+        let token_id = "1";
+
+        let arbitrary_user = arbitrary_user(&mut context, 0);
+
+        let final_listing_deploy: engine_state::DeployItem = final_listing(
+            market_hash,
+            cep47_hash,
+            erc20_hash,
+            arbitrary_user.address,
+            token_id
+        );
+
+        let error = execution_error(&mut context, final_listing_deploy);
+        println!("VVV {:?}", error.to_string());
+        assert_eq!(error.to_string(), "Invalid context");
+
+    }
+
 }

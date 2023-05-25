@@ -13,6 +13,7 @@ pub enum MarketEvent {
         min_bid_price: U256,
         redemption_price: U256,
         auction_duration: U128,
+        created_time: U256,
     },
     ListingPurchased {
         package: ContractPackageHash,
@@ -44,5 +45,11 @@ pub enum MarketEvent {
         nft_contract: String,
         token_id: String,
         price: U256
+    },
+    ListingFinishedWithoutOffer {
+        package: ContractPackageHash,
+        seller: Key,
+        nft_contract: String,
+        token_id: String,
     },
 }
