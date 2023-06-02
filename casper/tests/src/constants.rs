@@ -16,7 +16,7 @@ pub const PARAM_MARKET_CONTRACT_NAME: &str = "market";
 pub const PARAM_COMMISSION_WALLET: &str = "commission_wallet";
 pub const PARAM_STABLE_COMMISSION_PERCENT: &str = "stable_commission_percent";
 
-pub const EP_MINT: &str = "mint_copies";
+pub const EP_MINT: &str = "mint_one";
 pub const EP_CREATE_LISTING: &str = "create_listing";
 pub const EP_BUY_LISTING: &str = "buy_listing";
 pub const EP_MAKE_OFFER: &str = "make_offer";
@@ -25,3 +25,4 @@ pub const EP_FINAL_LISTING: &str = "final_listing";
 pub const EP_APPROVE: &str = "approve";
 pub const EP_SET_COMMISSION_WALLET: &str = "set_commission_wallet";
 pub const EP_SET_STABLE_COMMISSION_PERCENT: &str = "set_stable_commission_percent";
+pub const TEST_COMMISSION_PERCENT: u8 = 5;

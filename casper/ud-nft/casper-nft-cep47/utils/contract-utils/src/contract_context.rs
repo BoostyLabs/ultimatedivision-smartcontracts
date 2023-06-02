@@ -16,6 +16,22 @@ pub trait ContractContext<Storage: ContractStorage> {
         let call_stack = self.storage().call_stack();
         element_to_key(call_stack.last().unwrap_or_revert())
     }
+
+    fn self_hash(&self) -> Option<Key> {
+        let call_stack = self.storage().call_stack();
+        match call_stack.last().unwrap_or_revert() {
+            CallStackElement::StoredContract {
+                contract_package_hash: _,
+                contract_hash,
+            } => Some(Key::from(*contract_hash)),
+            CallStackElement::StoredSession {
+                account_hash: _,
+                contract_package_hash: _,
+                contract_hash,
+            } => Some(Key::from(*contract_hash)),
+            _ => None,
+        }
+    }
 }
 
 fn element_to_key(element: &CallStackElement) -> Key {

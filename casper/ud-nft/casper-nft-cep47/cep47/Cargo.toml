@@ -1,11 +1,8 @@
 [package]
 name = "cep47"
 version = "0.2.0"
+authors = ["astro019 <dmitry.yakov7@gmail.com>"]
 edition = "2018"
-
-[features]
-default = ["test-support"]
-test-support=["casper-contract/test-support"]
 
 [dependencies]
 hex = { version = "0.4.3", default-features = false }

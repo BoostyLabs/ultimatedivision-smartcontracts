@@ -4,7 +4,7 @@ use alloc::{
     vec::Vec,
 };
 use casper_contract::{
-    contract_api::{runtime::get_call_stack, storage},
+    contract_api::{runtime::{get_call_stack, self}, storage},
     unwrap_or_revert::UnwrapOrRevert,
 };
 use casper_types::{system::CallStackElement, ContractPackageHash, Key, URef, U256};
@@ -175,6 +175,7 @@ impl Allowances {
     }
 
     pub fn get(&self, owner: &Key, token_id: &TokenId) -> Option<Key> {
+
         self.dict.get(&key_and_value_to_str::<String>(
             owner,
             &token_id.to_string(),

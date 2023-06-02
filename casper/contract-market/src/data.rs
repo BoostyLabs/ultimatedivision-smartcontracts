@@ -2,7 +2,7 @@ use alloc::{
     string::{String, ToString},
     str,
     vec, vec::Vec,
-    collections::BTreeMap, borrow::ToOwned, 
+    collections::BTreeMap, 
 };
 
 use casper_contract::{
@@ -19,7 +19,7 @@ use casper_types::{
 use casper_types_derive::{CLTyped, FromBytes, ToBytes};
 
 use crate::{
-    event::MarketEvent, NFT_CONTRACT_HASH_ARG, TOKEN_ID_ARG
+    event::MarketEvent, NFT_CONTRACT_HASH_ARG, TOKEN_ID_ARG, uref, PARAM_STABLE_COMMISSION_PERCENT, PARAM_COMMISSION_WALLET
 };
 
 /// An error enum which can be converted to a `u16` so it can be returned as an `ApiError::User`.
@@ -89,10 +89,7 @@ const LISTING_DICTIONARY: &str = "listings";
 pub fn contract_package_hash() -> ContractPackageHash {
     let call_stacks = runtime::get_call_stack();
 
-
-
     let last_entry = call_stacks.last().unwrap_or_revert();
-
 
     let package_hash: Option<ContractPackageHash> = match last_entry {
         CallStackElement::StoredContract {
@@ -116,7 +113,7 @@ pub fn transfer_approved(nft_contract_hash: ContractHash, token_id: &str, owner:
         "get_approved",
         runtime_args! {
             "owner" => owner,
-            "token_id" => U256::from_dec_str(&token_id).unwrap()
+            "token_id" => token_id
           }
     );
 
@@ -124,6 +121,10 @@ pub fn transfer_approved(nft_contract_hash: ContractHash, token_id: &str, owner:
             .unwrap_or_revert_with(Error::NeedsTransferApproval)
             .into_hash()
             .unwrap()
+}
+
+pub fn token_id_to_vec(token_id: &str) -> Vec<&str> {
+    vec![token_id]
 }
 
 pub fn get_id<T: CLTyped + ToBytes>(nft_contract: &T, token_id: &T) -> String {
@@ -148,14 +149,9 @@ pub fn get_token_owner(nft_contract_hash: ContractHash, token_id: &str) -> Optio
         nft_contract_hash,
         "owner_of",
         runtime_args! {
-            "token_id" => U256::from_dec_str(&token_id).unwrap()
+            "token_id" => token_id
           }
     )
-}
-
-pub fn token_id_to_vec(token_id: &str) -> Vec<U256> {
-    let token_id: U256 = U256::from_str_radix(&token_id, 10).unwrap();
-    vec![token_id]
 }
 
 pub fn get_listing(listing_id: &str) -> (Listing, URef) {
@@ -177,13 +173,6 @@ pub fn get_listing_dictionary() -> URef {
     get_dictionary_uref(LISTING_DICTIONARY)
 }
 
-// use when it doesn't matter if listing exists or not & no event needed
-pub fn remove_listing(nft_contract: &str, token_id: &str) -> () {
-    let listing_id: String = get_id(&nft_contract, &token_id);
-    let dictionary_uref = get_dictionary_uref(LISTING_DICTIONARY);
-    storage::dictionary_put(dictionary_uref, &listing_id, None::<Listing>);
-}
-
 pub fn get_initial_args() -> (Key, String, ContractHash, String) {
     let bidder = Key::Account(runtime::get_caller());
     let nft_contract_string: String = runtime::get_named_arg(NFT_CONTRACT_HASH_ARG);
@@ -194,7 +183,29 @@ pub fn get_initial_args() -> (Key, String, ContractHash, String) {
     (bidder, nft_contract_string, nft_contract_hash, token_id)
 }
 
-pub fn transfer_nft(nft_contract: ContractHash, sender: Key, recipient: Key, token_ids: Vec<U256>) {
+pub fn get_stable_commission_percent() -> U256 {
+    uref::read(PARAM_STABLE_COMMISSION_PERCENT)
+}
+
+pub fn get_total_commission(amount: U256) -> U256 {
+    amount * get_stable_commission_percent() / 100
+}
+
+pub fn get_commission_data(redemption_price: U256) -> (U256, Key) {
+    let commission = get_total_commission(redemption_price);
+
+    let commission_wallet: Key = uref::read(PARAM_COMMISSION_WALLET);
+    (commission, commission_wallet)
+}
+
+// use when it doesn't matter if listing exists or not & no event needed
+pub fn remove_listing(nft_contract: &str, token_id: &str) -> () {
+    let listing_id: String = get_id(&nft_contract, &token_id);
+    let dictionary_uref = get_dictionary_uref(LISTING_DICTIONARY);
+    storage::dictionary_put(dictionary_uref, &listing_id, None::<Listing>);
+}
+
+pub fn transfer_nft(nft_contract: ContractHash, sender: Key, recipient: Key, token_ids: Vec<&str>) {
     runtime::call_contract::<()>(
         nft_contract,
         "transfer_from",

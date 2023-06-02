@@ -14,6 +14,9 @@ pub enum Error {
     WrongArguments = 2,
     TokenIdAlreadyExists = 3,
     TokenIdDoesntExist = 4,
+    InvalidSignature = 5,
+    Cryptography = 6,
+    TokenIdReachedLimit = 7,
 }
 
 impl From<Error> for ApiError {
@@ -117,7 +120,6 @@ pub trait CEP47<Storage: ContractStorage>: ContractContext<Storage> {
         let new_total_supply = data::total_supply()
             .checked_add(minted_tokens_count)
             .unwrap();
-    
         data::set_total_supply(new_total_supply);
 
         self.emit(CEP47Event::Mint {

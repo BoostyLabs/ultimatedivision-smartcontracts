@@ -1,4 +1,4 @@
-use std::{path::PathBuf, fmt::Debug, rc::Rc};
+use std::path::PathBuf;
 
 use casper_types::{
     account::AccountHash, bytesrepr::FromBytes, CLTyped, ContractHash, RuntimeArgs,
@@ -40,7 +40,7 @@ impl TestContract {
             .query_dictionary(self.contract_hash(), dict_name, key)
     }
 
-    pub fn query_named_key<T: CLTyped + FromBytes + Debug>(&self, key: String) -> T {
+    pub fn query_named_key<T: CLTyped + FromBytes>(&self, key: String) -> T {
         let contract_name = format!("{}_contract_hash", self.name);
         self.env
             .query_account_named_key(self.contract_owner, &[contract_name, key])

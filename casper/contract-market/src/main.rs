@@ -33,7 +33,7 @@ mod uref;
 use data::{
     contract_package_hash, emit, remove_listing, get_id, get_listing, get_listing_dictionary,
     get_token_owner, token_id_to_vec, transfer_approved, AuctionBid,
-    Error, Listing, get_initial_args, transfer_nft,
+    Error, Listing, get_initial_args, transfer_nft, get_commission_data,
 };
 mod data;
 mod interface {
@@ -48,7 +48,6 @@ const MIN_BID_PRICE_ARG: &str = "min_bid_price";
 const OFFER_PRICE_ARG: &str = "offer_price";
 const REDEMPTION_PRICE_ARG: &str = "redemption_price";
 const AUCTION_DURATION_ARG: &str = "auction_duration";
-const BUYER_PURSE_ARG: &str = "purse";
 
 const GROUP_OPERATOR: &str = "operator";
 const NK_ACCESS_UREF: &str = "market_contract_uref";
@@ -60,19 +59,10 @@ const PARAM_STABLE_COMMISSION_PERCENT: &str = "stable_commission_percent";
 // vvvunused OFFER functionality
 // const ACCEPTED_OFFER_ARG: &str = "accepted_offer";
 
-// vvvdone:
-// +add min bid price
-// +add redeem price
-// +add check that redeem price >= redeem price
-// +add auction_duration
-// +check auction duration
-// 2h + 2h tests = 4h
-// +transfer_nft? (+4h), done via approval
-// cover: 50%
 #[no_mangle]
 pub extern "C" fn create_listing() -> () {
-    let (token_owner, nft_contract_string, nft_contract_hash, token_id) = get_initial_args();
 
+    let (token_owner, nft_contract_string, nft_contract_hash, token_id) = get_initial_args();
     let min_bid_price: U256 = runtime::get_named_arg(MIN_BID_PRICE_ARG);
     let redemption_price: U256 = runtime::get_named_arg(REDEMPTION_PRICE_ARG);
     let auction_duration: U128 = runtime::get_named_arg(AUCTION_DURATION_ARG);
@@ -94,7 +84,6 @@ pub extern "C" fn create_listing() -> () {
         revert(Error::NeedsTransferApproval);
     }
 
-
     let listing = Listing {
         nft_contract: nft_contract_hash,
         token_id: token_id.clone(),
@@ -106,7 +95,7 @@ pub extern "C" fn create_listing() -> () {
         created_time: U256::one() * current_time,
     };
 
-    let listing_id: String = get_id(&nft_contract_string, &token_id); // vvvcheck
+    let listing_id: String = get_id(&nft_contract_string, &token_id);
     let dictionary_uref: URef = get_listing_dictionary();
     storage::dictionary_put(dictionary_uref, &listing_id, listing);
 
@@ -122,10 +111,6 @@ pub extern "C" fn create_listing() -> () {
         created_time: U256::one() * current_time,
     })
 }
-
-// vvvdone:
-// add canceling previous_offer_price if exists and transfer back money to the previous bidder +8h
-// cover: 50%
 
 #[no_mangle]
 pub fn buy_listing() -> () {
@@ -143,11 +128,19 @@ pub fn buy_listing() -> () {
         revert(Error::BalanceInsufficient);
     }
 
+    let (commission, commission_wallet) = get_commission_data(_listing.redemption_price);
+
     erc20::transfer_from(
         erc20_hash,
         buyer,
         _listing.seller,
-        _listing.redemption_price,
+        _listing.redemption_price - commission,
+    );
+    erc20::transfer_from(
+        erc20_hash,
+        buyer,
+        commission_wallet,
+        commission,
     );
 
     match _listing.active_bid {
@@ -157,11 +150,13 @@ pub fn buy_listing() -> () {
         None => (),
     }
 
-    let token_ids: Vec<U256> = token_id_to_vec(&_listing.token_id);
+    let token_ids: Vec<&str> = token_id_to_vec(&_listing.token_id);
 
     transfer_nft(_listing.nft_contract, _listing.seller, buyer, token_ids);
 
     storage::dictionary_put(dictionary_uref, &listing_id, None::<Listing>);
+
+    remove_listing(&nft_contract_string, &token_id);
 
     emit(&MarketEvent::ListingPurchased {
         package: contract_package_hash(),
@@ -184,11 +179,6 @@ pub fn get_listing_by_id() {
     runtime::ret(CLValue::from_t(_listing).unwrap_or_revert());
 }
 
-// vvvdone:
-// +transfer money to contract
-// +remove previous_offer_price: transfer money back to the &bidder
-// +check whether new bid greater than previous
-// 4h
 #[no_mangle]
 pub extern "C" fn make_offer() -> () {
     let (bidder, nft_contract_string, _, token_id) = get_initial_args();
@@ -222,7 +212,6 @@ pub extern "C" fn make_offer() -> () {
     });
     erc20::transfer_from(erc20_hash, bidder, self_contract_key, offer_price);
 
-    let listing_id: String = get_id(&nft_contract_string, &token_id); // vvvcheck
     let listing_dictionary_uref: URef = get_listing_dictionary();
     storage::dictionary_put(listing_dictionary_uref, &listing_id, _listing);
 
@@ -257,28 +246,34 @@ pub extern "C" fn make_offer() -> () {
 //     })
 // }
 
-// vvvdone:
-// reuse code
-// 16h
-// cover: 50%
 #[no_mangle]
 pub extern "C" fn accept_offer() -> () {
     let (seller, nft_contract_string, nft_contract_hash, token_id) = get_initial_args();
-    let token_ids: Vec<U256> = token_id_to_vec(&token_id);
+    let token_ids: Vec<&str> = token_id_to_vec(&token_id);
     let listing_id: &str = &(get_id(&nft_contract_string, &token_id).to_owned())[..];
     let (mut _listing, _) = get_listing(&listing_id);
 
     let erc20_hash: ContractHash = uref::read(PARAM_ERC20);
 
+
     match _listing.active_bid {
         Some(bid) => {
+            let (commission, commission_wallet) = get_commission_data(bid.price);
 
             if _listing.seller != seller {
                 revert(Error::OfferPermissionDenied);
             }
             transfer_nft(nft_contract_hash, seller, bid.bidder, token_ids);
-            erc20::transfer_contract_to_recipient(erc20_hash, seller, bid.price);
-
+            erc20::transfer_contract_to_recipient(
+                erc20_hash, 
+                seller,
+                bid.price - commission
+            );
+            erc20::transfer_contract_to_recipient(
+                erc20_hash,
+                commission_wallet,
+                commission,
+            );
             remove_listing(&nft_contract_string, &token_id);
             emit(&MarketEvent::OfferAccepted {
                 package: contract_package_hash(),
@@ -297,7 +292,7 @@ pub extern "C" fn accept_offer() -> () {
 pub extern "C" fn final_listing() -> () {
     let (_, nft_contract_string, nft_contract_hash, token_id) = get_initial_args();
 
-    let token_ids: Vec<U256> = token_id_to_vec(&token_id);
+    let token_ids: Vec<&str> = token_id_to_vec(&token_id);
 
     let listing_id: &str = &(get_id(&nft_contract_string, &token_id).to_owned())[..];
     let (mut _listing, _) = get_listing(&listing_id);
@@ -305,7 +300,6 @@ pub extern "C" fn final_listing() -> () {
     let erc20_hash: ContractHash = uref::read(PARAM_ERC20);
 
     let current_time: u64 = runtime::get_blocktime().into();
-    
 
     let listing_finish_time = U128::as_u64(&_listing.auction_duration) + U256::as_u64(&_listing.created_time); 
 
@@ -318,8 +312,11 @@ pub extern "C" fn final_listing() -> () {
 
     match _listing.active_bid {
         Some(bid) => {
+            let (commission, commission_wallet) = get_commission_data(bid.price);
+
             transfer_nft(nft_contract_hash, _listing.seller, bid.bidder, token_ids);
-            erc20::transfer_contract_to_recipient(erc20_hash, _listing.seller, bid.price);
+            erc20::transfer_contract_to_recipient(erc20_hash, _listing.seller, bid.price - commission);
+            erc20::transfer_contract_to_recipient(erc20_hash, commission_wallet, commission);
             emit(&MarketEvent::OfferAccepted {
                 package: contract_package_hash(),
                 seller: _listing.seller,
@@ -376,7 +373,7 @@ pub extern "C" fn call() {
 
     let commission_wallet: Key = runtime::get_named_arg(PARAM_COMMISSION_WALLET);
 
-    let default_percent = storage::new_uref(U256::one() * 3);
+    let default_percent = storage::new_uref(U256::one() * 5);
     let default_erc20 = storage::new_uref(erc20_hash);
     let default_commission_wallet = storage::new_uref(commission_wallet);
 
@@ -434,7 +431,6 @@ fn get_entry_points() -> EntryPoints {
         vec![
             Parameter::new(NFT_CONTRACT_HASH_ARG, String::cl_type()),
             Parameter::new(TOKEN_ID_ARG, String::cl_type()),
-            Parameter::new(BUYER_PURSE_ARG, URef::cl_type()),
         ],
         <()>::cl_type(),
         EntryPointAccess::Public,
@@ -510,7 +506,3 @@ fn get_entry_points() -> EntryPoints {
     entry_points
 }
 
-// vvvrev: add commission logic
-// vvvrev: hardcode erc20 contract?
-// vvvrev: remove approval
-// vvvrev: pass contract as bytes - how to?

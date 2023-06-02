@@ -1,5 +1,6 @@
+use core::cell::OnceCell;
+
 use alloc::vec::Vec;
-use core::lazy::OnceCell;
 
 use casper_contract::contract_api::runtime;
 use casper_types::system::CallStackElement;

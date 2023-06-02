@@ -4,7 +4,7 @@
 #[macro_use]
 extern crate alloc;
 
-use alloc::{boxed::Box, collections::{BTreeSet, BTreeMap}, format, string::{String, ToString}, vec::Vec};
+use alloc::{boxed::Box, collections::BTreeSet, format, string::String, vec::Vec};
 use casper_contract::{
     contract_api::{runtime, storage},
     unwrap_or_revert::UnwrapOrRevert,
@@ -36,9 +36,7 @@ impl NFTToken {
 fn constructor() {
     let name = runtime::get_named_arg::<String>("name");
     let symbol = runtime::get_named_arg::<String>("symbol");
-    let mut meta = BTreeMap::new();
-    meta.insert("color".to_string(), "red".to_string());
-
+    let meta = runtime::get_named_arg::<Meta>("meta");
     NFTToken::default().constructor(name, symbol, meta);
 }
 
@@ -115,18 +113,6 @@ fn mint() {
 }
 
 #[no_mangle]
-fn mint_one_test_token() {
-    let recipient = runtime::get_named_arg::<Key>("recipient");
-    let token_ids = vec![runtime::get_named_arg::<TokenId>("token_id")];
-    let mut meta = BTreeMap::new();
-    meta.insert("color".to_string(), "red".to_string());
-
-    NFTToken::default()
-        .mint_copies(recipient, token_ids, meta, 1)
-        .unwrap_or_revert();
-}
-
-#[no_mangle]
 fn mint_copies() {
     let recipient = runtime::get_named_arg::<Key>("recipient");
     let token_ids = runtime::get_named_arg::<Vec<U256>>("token_ids");
@@ -187,23 +173,25 @@ fn call() {
     // Read arguments for the constructor call.
     let name: String = runtime::get_named_arg("name");
     let symbol: String = runtime::get_named_arg("symbol");
+    let meta: Meta = runtime::get_named_arg("meta");
     let contract_name: String = runtime::get_named_arg("contract_name");
 
     // Prepare constructor args
     let constructor_args = runtime_args! {
         "name" => name,
         "symbol" => symbol,
+        "meta" => meta
     };
 
     let (contract_hash, _) = storage::new_contract(
         get_entry_points(),
         None,
-        Some(format!("{}_contract_package_hash", contract_name)),
+        Some(String::from("contract_package_hash")),
         None,
     );
 
     let package_hash: ContractPackageHash = ContractPackageHash::new(
-        runtime::get_key(&format!("{}_contract_package_hash", contract_name))
+        runtime::get_key("contract_package_hash")
             .unwrap_or_revert()
             .into_hash()
             .unwrap_or_revert(),
@@ -310,16 +298,6 @@ fn get_entry_points() -> EntryPoints {
             Parameter::new("recipient", Key::cl_type()),
             Parameter::new("token_ids", CLType::List(Box::new(TokenId::cl_type()))),
             Parameter::new("token_metas", CLType::List(Box::new(Meta::cl_type()))),
-        ],
-        <()>::cl_type(),
-        EntryPointAccess::Public,
-        EntryPointType::Contract,
-    ));
-    entry_points.add_entry_point(EntryPoint::new(
-        "mint_one_test_token",
-        vec![
-            Parameter::new("recipient", Key::cl_type()),
-            Parameter::new("token_id", TokenId::cl_type()),
         ],
         <()>::cl_type(),
         EntryPointAccess::Public,

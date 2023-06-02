@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-    "cep47",
+    "ud-nft",
     "erc20",
     "contract-market",
     "verifier",

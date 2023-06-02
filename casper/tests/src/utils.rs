@@ -32,14 +32,14 @@ use casper_types::{
 
 // use contract_util::event::ContractEvent;
 
-const CONTRACT_CEP47_BYTES: &[u8] = include_bytes!("../wasm/cep47-token.wasm");
+const CONTRACT_CEP47_BYTES: &[u8] = include_bytes!("../wasm/ud-nft.wasm");
 const CONTRACT_ERC20_BYTES: &[u8] = include_bytes!("../wasm/erc20.wasm");
 const CONTRACT_MARKET_BYTES: &[u8] = include_bytes!("../wasm/contract-market.wasm");
 
 static DEPLOY_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 use crate::constants::{
-    TEST_ACCOUNT_BALANCE, TEST_BLOCK_TIME, TEST_ACCOUNT, PARAM_AMOUNT, PARAM_RECIPIENT, PARAM_NFT_NAME, PARAM_NFT_SYMBOL, PARAM_MARKET_CONTRACT_NAME, PARAM_NFT_CONTRACT_NAME, EP_MINT, EP_CREATE_LISTING, EP_APPROVE, EP_BUY_LISTING, EP_MAKE_OFFER, EP_ACCEPT_OFFER, EP_FINAL_LISTING, EP_SET_COMMISSION_WALLET, PARAM_COMMISSION_WALLET, PARAM_STABLE_COMMISSION_PERCENT, EP_SET_STABLE_COMMISSION_PERCENT
+    TEST_ACCOUNT_BALANCE, TEST_BLOCK_TIME, TEST_ACCOUNT, PARAM_AMOUNT, PARAM_RECIPIENT, PARAM_MARKET_CONTRACT_NAME, EP_MINT, EP_CREATE_LISTING, EP_APPROVE, EP_BUY_LISTING, EP_MAKE_OFFER, EP_ACCEPT_OFFER, EP_FINAL_LISTING, EP_SET_COMMISSION_WALLET, PARAM_COMMISSION_WALLET, PARAM_STABLE_COMMISSION_PERCENT, EP_SET_STABLE_COMMISSION_PERCENT, TEST_COMMISSION_PERCENT
 };
 pub type Meta = BTreeMap<String, String>;
 pub type TokenId = U256;
@@ -194,7 +194,7 @@ where
 }
 
 
-pub fn deploy_cep47<S>(
+pub fn deploy_nft<S>(
     builder: &mut WasmTestBuilder<S>,
     account: AccountHash,
 ) -> (ContractHash, ContractPackageHash)
@@ -204,9 +204,7 @@ where
     <S as StateProvider>::Error: Into<ExecError>,
 {
     let deploy_args = runtime_args! {
-        "contract_name" => PARAM_NFT_CONTRACT_NAME,
-        "name" => PARAM_NFT_NAME,
-        "symbol" => PARAM_NFT_SYMBOL,
+        "key" => "0f988af84bc00098933c61790ee888bf99d518ba116704b548d0f7ff3c7457fe",
     };
 
     deploy_contract(
@@ -214,7 +212,7 @@ where
         account,
         CONTRACT_CEP47_BYTES,
         deploy_args,
-        &[PARAM_NFT_CONTRACT_NAME, "contract_hash"].join("_"),
+        &"ultima_division_nft_contract_hash",
     )
 }
 
@@ -279,7 +277,7 @@ pub fn init_environment() -> (
     let (
         cep47_hash,
         cep47_package_hash
-    ) = deploy_cep47::<InMemoryGlobalState>(&mut context.builder, context.account.address);
+    ) = deploy_nft::<InMemoryGlobalState>(&mut context.builder, context.account.address);
 
     let (
         market_hash, 
@@ -294,7 +292,7 @@ pub fn init_environment() -> (
     let mint_deploy = mint_tokens(
         cep47_hash, 
         context.account.address,
-        vec![U256::one()]
+        "one"
     );
     exec_deploy(&mut context, mint_deploy).expect_success();
 
@@ -423,7 +421,7 @@ pub fn approve_nft(
     cep47_hash: ContractHash,
     spender: ContractPackageHash,
     account_address: AccountHash,
-    token_ids: Vec<U256>
+    token_id: &str
 ) -> DeployItem {
 
     simple_deploy_builder(account_address)
@@ -432,7 +430,7 @@ pub fn approve_nft(
             EP_APPROVE,
             runtime_args! {
                 "spender" => Key::from(spender),
-                "token_ids" => token_ids,
+                "token_id" => token_id,
             },
         )
         .build()
@@ -462,7 +460,7 @@ pub fn approve_erc20(
 pub fn mint_tokens(
     cep47_hash: ContractHash,
     account_address: AccountHash,
-    token_ids: Vec<U256>
+    token_id: &str
 ) -> DeployItem {
 
     simple_deploy_builder(account_address)
@@ -471,9 +469,7 @@ pub fn mint_tokens(
             EP_MINT,
             runtime_args! {
                 "recipient" => Key::from(account_address),
-                "token_ids" => token_ids,
-                "token_meta" => test_meta_nft(),
-                "count" => 1
+                "token_id" => token_id,
             },
         )
         .build()
@@ -490,7 +486,7 @@ pub fn mint_erc20(
             EP_MINT,
             runtime_args! {
                 "recipient" => Key::from(account_address),
-                "token_ids" => vec![U256::one()],
+                "token_ids" => "one",
                 "token_meta" => test_meta_nft(),
                 "count" => 1
             },
@@ -634,10 +630,18 @@ pub fn set_stable_commission_percent(
 }
 
 pub fn get_auction_data() -> (U256, U256, U256) {
-    let min_bid_price = U256::one() * 3;
-    let redemption_price = U256::one() * 10;
+    let min_bid_price = U256::one() * 30;
+    let redemption_price = U256::one() * 100;
     let auction_duration: U256 = U256::one() * 86_400;
     (min_bid_price, redemption_price, auction_duration)
+}
+
+pub fn get_commission(price: U256) -> U256 {
+    price * TEST_COMMISSION_PERCENT / 100
+}
+
+pub fn get_price_minus_commission(redemption_price: U256) -> U256 {
+    U256::one() * (redemption_price - (redemption_price * TEST_COMMISSION_PERCENT / 100))
 }
 
 pub fn owner_of(
