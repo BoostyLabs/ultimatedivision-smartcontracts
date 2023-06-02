@@ -429,7 +429,8 @@ pub fn approve_nft(
             cep47_hash,
             EP_APPROVE,
             runtime_args! {
-                "spender" => Key::from(spender),
+                // "spender" => Key::from(spender),
+                "spender" => spender.to_string(),
                 "token_id" => token_id,
             },
         )

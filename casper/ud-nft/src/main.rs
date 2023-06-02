@@ -21,7 +21,7 @@ use casper_contract::{
 use casper_types::{
     contracts::NamedKeys, runtime_args, CLType, CLTyped, CLValue, ContractHash,
     ContractPackageHash, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Group, Key,
-    Parameter, RuntimeArgs, URef, U256,
+    Parameter, RuntimeArgs, URef, U256, bytesrepr::{ToBytes, FromBytes},
 };
 use cep47::{
     contract_utils::{ContractContext, Dict, OnChainContractStorage},
@@ -230,7 +230,11 @@ fn transfer_from() {
 
 #[no_mangle]
 fn approve() {
-    let spender = runtime::get_named_arg::<Key>("spender");
+    //     let spender = runtime::get_named_arg::<Key>("spender");
+    let prefix = "hash-";
+    let spender_str = runtime::get_named_arg::<String>("spender");
+    let contract_package_formatted_str = prefix.to_owned() + &spender_str;
+    let spender = Key::from_formatted_str(&contract_package_formatted_str).unwrap();
     let token_id = runtime::get_named_arg::<String>("token_id");
     let token_ids = UUIDMapping::instance().get_token_ids(vec![token_id]);
 
@@ -455,7 +459,7 @@ fn get_entry_points() -> EntryPoints {
     entry_points.add_entry_point(EntryPoint::new(
         "approve",
         vec![
-            Parameter::new("spender", Key::cl_type()),
+            Parameter::new("spender", String::cl_type()),
             Parameter::new("token_id", String::cl_type()),
         ],
         <()>::cl_type(),
