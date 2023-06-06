@@ -4,6 +4,8 @@
 #[macro_use]
 extern crate alloc;
 
+use core::fmt::Display;
+
 use alloc::{
     borrow::ToOwned,
     boxed::Box,
@@ -21,11 +23,11 @@ use casper_contract::{
 use casper_types::{
     contracts::NamedKeys, runtime_args, CLType, CLTyped, CLValue, ContractHash,
     ContractPackageHash, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Group, Key,
-    Parameter, RuntimeArgs, URef, U256, bytesrepr::{ToBytes, FromBytes},
+    Parameter, RuntimeArgs, URef, U256, bytesrepr::{ToBytes, FromBytes}, account::AccountHash,
 };
 use cep47::{
     contract_utils::{ContractContext, Dict, OnChainContractStorage},
-    Meta, TokenId, CEP47,
+    Meta, TokenId, CEP47, Error,
 };
 use verifier::Verifier;
 
@@ -230,11 +232,14 @@ fn transfer_from() {
 
 #[no_mangle]
 fn approve() {
-    //     let spender = runtime::get_named_arg::<Key>("spender");
-    let prefix = "hash-";
     let spender_str = runtime::get_named_arg::<String>("spender");
-    let contract_package_formatted_str = prefix.to_owned() + &spender_str;
-    let spender = Key::from_formatted_str(&contract_package_formatted_str).unwrap();
+
+    let spender = Key::from(ContractPackageHash::from_formatted_str(
+        &spender_str
+    ).unwrap_or_else(
+        |e| runtime::revert(Error::ApprovalParseError))
+    );
+
     let token_id = runtime::get_named_arg::<String>("token_id");
     let token_ids = UUIDMapping::instance().get_token_ids(vec![token_id]);
 
@@ -294,7 +299,14 @@ fn claim() {
 #[no_mangle]
 fn mint_one() {
     let token_uuid = runtime::get_named_arg::<String>("token_id");
-    let recipient = runtime::get_named_arg::<Key>("recipient");
+    // let recipient = runtime::get_named_arg::<Key>("recipient");
+
+    let recipient_str = runtime::get_named_arg::<String>("recipient");
+    let recipient = Key::from(AccountHash::from_formatted_str(&recipient_str).unwrap_or_else(
+        |e| runtime::revert(Error::MintSingleTokenParseError)
+        )
+    );
+
 
     let uuid_mapping = UUIDMapping::instance();
 
@@ -500,7 +512,7 @@ fn get_entry_points() -> EntryPoints {
         "mint_one",
         vec![
             Parameter::new("token_id", String::cl_type()),
-            Parameter::new("recipient", Key::cl_type()),
+            Parameter::new("recipient", String::cl_type()),
         ],
         CLType::Unit,
         EntryPointAccess::Public,

@@ -4,7 +4,7 @@ use std::{
     collections::BTreeMap
 };
 
-use casper_contract::contract_api::runtime::call_versioned_contract;
+use casper_contract::contract_api::runtime::{call_versioned_contract, print};
 use casper_engine_test_support::{
     DeployItemBuilder, ExecuteRequestBuilder, InMemoryWasmTestBuilder, WasmTestBuilder, ARG_AMOUNT,
     DEFAULT_ACCOUNT_INITIAL_BALANCE, DEFAULT_GENESIS_CONFIG, DEFAULT_GENESIS_CONFIG_HASH,
@@ -424,13 +424,14 @@ pub fn approve_nft(
     token_id: &str
 ) -> DeployItem {
 
+    println!("VVV1 {:?}", spender.to_formatted_string());
     simple_deploy_builder(account_address)
         .with_stored_session_hash(
             cep47_hash,
             EP_APPROVE,
             runtime_args! {
                 // "spender" => Key::from(spender),
-                "spender" => spender.to_string(),
+                "spender" => spender.to_formatted_string(),
                 "token_id" => token_id,
             },
         )
@@ -464,12 +465,14 @@ pub fn mint_tokens(
     token_id: &str
 ) -> DeployItem {
 
+
+    println!("aaa {:?}", account_address.to_formatted_string());
     simple_deploy_builder(account_address)
         .with_stored_session_hash(
             cep47_hash,
             EP_MINT,
             runtime_args! {
-                "recipient" => Key::from(account_address),
+                "recipient" => account_address.to_formatted_string(),
                 "token_id" => token_id,
             },
         )
