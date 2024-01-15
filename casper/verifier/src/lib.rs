@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 #[cfg(feature = "contract")]
 use casper_contract::{
     contract_api::{runtime, storage},
@@ -7,15 +5,14 @@ use casper_contract::{
 };
 
 use casper_types::{
-    bytesrepr::{Bytes, FromBytes},
+    bytesrepr::{Bytes},
     contracts::NamedKeys,
-    ContractHash, Key, URef, U256,
+    ContractHash, Key, U256,
 };
 use k256::ecdsa::{
-    self,
     recoverable::{self, Signature},
-    signature::{DigestSigner, Signature as _Signature, Signer},
-    SigningKey, VerifyingKey,
+    signature::{Signature as _Signature},
+    VerifyingKey,
 };
 use once_cell::unsync::OnceCell;
 use tiny_keccak::Hasher;

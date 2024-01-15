@@ -1,5 +1,5 @@
 [package]
-name = "udtoken"
+name = "erc20"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,5 +13,5 @@ strip = true
 [dependencies]
 casper-contract = { version = "1.3.2", features = ["no-std-helpers"] }
 casper-types = "1.3.2"
-casper-erc20 = { path = "erc20/erc20" }
+casper-erc20 = {git = "https://github.com/casper-ecosystem/erc20.git" }
 verifier = { path = "../verifier", features = ["contract"] }

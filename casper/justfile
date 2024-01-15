@@ -1,7 +1,37 @@
-build:
-    just -f erc20/justfile build
-    just -f ud-nft/justfile build
-    mkdir -p contracts
-    mv erc20/udtoken.wasm contracts
-    mv ud-nft/ud-nft.wasm contracts
+prepare:
+	rustup target add wasm32-unknown-unknown
 
+build-contract-nft:
+	cargo build --release -p ud-nft --target wasm32-unknown-unknown
+	wasm-strip target/wasm32-unknown-unknown/release/ud-nft.wasm 2>/dev/null | true
+
+build-contract-erc20:
+	cargo build --release -p erc20 --target wasm32-unknown-unknown
+	wasm-strip target/wasm32-unknown-unknown/release/erc20-token.wasm 2>/dev/null | true
+
+build-contract-market:
+	cargo build --release -p contract-market --target wasm32-unknown-unknown
+	wasm-strip target/wasm32-unknown-unknown/release/contract-market.wasm 2>/dev/null | true
+
+test-only:
+	cargo test -p tests
+
+copy-wasm-file-to-test:
+	cp target/wasm32-unknown-unknown/release/*.wasm tests/wasm
+
+build-all: build-contract-nft build-contract-market build-contract-erc20 copy-wasm-file-to-test
+
+test: build-contract-nft build-contract-market copy-wasm-file-to-test test-only
+
+clippy:
+	cargo clippy --all-targets --all -- -D warnings
+
+check-lint: clippy
+	cargo fmt --all -- --check
+
+lint: clippy
+	cargo fmt --all
+
+clean:
+	cargo clean
+	rm -rf tests/wasm/*.wasm

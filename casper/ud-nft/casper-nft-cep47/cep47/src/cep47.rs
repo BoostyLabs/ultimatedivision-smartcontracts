@@ -17,6 +17,8 @@ pub enum Error {
     InvalidSignature = 5,
     Cryptography = 6,
     TokenIdReachedLimit = 7,
+    ApprovalParseError = 8,
+    MintSingleTokenParseError = 9,
 }
 
 impl From<Error> for ApiError {

@@ -4,6 +4,8 @@
 #[macro_use]
 extern crate alloc;
 
+use core::fmt::Display;
+
 use alloc::{
     borrow::ToOwned,
     boxed::Box,
@@ -21,11 +23,11 @@ use casper_contract::{
 use casper_types::{
     contracts::NamedKeys, runtime_args, CLType, CLTyped, CLValue, ContractHash,
     ContractPackageHash, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Group, Key,
-    Parameter, RuntimeArgs, URef, U256,
+    Parameter, RuntimeArgs, URef, U256, bytesrepr::{ToBytes, FromBytes}, account::AccountHash,
 };
 use cep47::{
     contract_utils::{ContractContext, Dict, OnChainContractStorage},
-    Meta, TokenId, CEP47,
+    Meta, TokenId, CEP47, Error,
 };
 use verifier::Verifier;
 
@@ -162,7 +164,10 @@ fn get_token_by_index() {
 
 #[no_mangle]
 fn owner_of() {
+
+
     let token_id = runtime::get_named_arg::<String>("token_id");
+
     let ret = UUIDMapping::instance()
         .get_token_id(&token_id)
         .and_then(|token_id| NFTToken::default().owner_of(token_id));
@@ -227,9 +232,16 @@ fn transfer_from() {
 
 #[no_mangle]
 fn approve() {
-    let spender = runtime::get_named_arg::<Key>("spender");
-    let token_ids = runtime::get_named_arg::<Vec<String>>("token_ids");
-    let token_ids = UUIDMapping::instance().get_token_ids(token_ids);
+    let spender_str = runtime::get_named_arg::<String>("spender");
+
+    let spender = Key::from(ContractPackageHash::from_formatted_str(
+        &spender_str
+    ).unwrap_or_else(
+        |e| runtime::revert(Error::ApprovalParseError))
+    );
+
+    let token_id = runtime::get_named_arg::<String>("token_id");
+    let token_ids = UUIDMapping::instance().get_token_ids(vec![token_id]);
 
     NFTToken::default()
         .approve(spender, token_ids)
@@ -278,8 +290,43 @@ fn claim() {
         .unwrap_or_else(|| revert(cep47::Error::InvalidSignature));
     let token_id = uuid_mapping.get_available_token_id();
 
-    nft.mint(nft.get_caller(), vec![0.into()], vec![Meta::new()])
+    nft.mint(nft.get_caller(), vec![token_id], vec![Meta::new()])
         .unwrap_or_revert();
+    uuid_mapping.put_new_token(&token_uuid);
+}
+
+
+#[no_mangle]
+fn mint_one() {
+    let token_uuid = runtime::get_named_arg::<String>("token_id");
+    // let recipient = runtime::get_named_arg::<Key>("recipient");
+
+    let recipient_str = runtime::get_named_arg::<String>("recipient");
+    let recipient = Key::from(AccountHash::from_formatted_str(&recipient_str).unwrap_or_else(
+        |e| runtime::revert(Error::MintSingleTokenParseError)
+        )
+    );
+
+
+    let uuid_mapping = UUIDMapping::instance();
+
+    if let Some(_) = uuid_mapping.get_token_id(&token_uuid) {
+        revert(cep47::Error::TokenIdAlreadyExists);
+    }
+
+    let mut nft = NFTToken::default();
+
+    let capacity = nft.total_supply();
+
+    if capacity > 10000.into() {
+        revert(cep47::Error::TokenIdReachedLimit)
+    }
+
+    let token_id = uuid_mapping.get_available_token_id();
+
+    nft.mint(recipient, vec![token_id], vec![Meta::new()])
+        .unwrap_or_revert();
+
     uuid_mapping.put_new_token(&token_uuid);
 }
 
@@ -328,6 +375,7 @@ fn call() {
         .unwrap_or_revert();
 
     runtime::put_key("ultima_division_nft_contract_hash", contract_hash.into());
+
     runtime::put_key(
         "ultima_division_nft_contract_hash_wrapped",
         storage::new_uref(contract_hash).into(),
@@ -423,8 +471,8 @@ fn get_entry_points() -> EntryPoints {
     entry_points.add_entry_point(EntryPoint::new(
         "approve",
         vec![
-            Parameter::new("spender", Key::cl_type()),
-            Parameter::new("token_ids", CLType::List(Box::new(String::cl_type()))),
+            Parameter::new("spender", String::cl_type()),
+            Parameter::new("token_id", String::cl_type()),
         ],
         <()>::cl_type(),
         EntryPointAccess::Public,
@@ -455,6 +503,16 @@ fn get_entry_points() -> EntryPoints {
         vec![
             Parameter::new("signature", String::cl_type()),
             Parameter::new("token_id", String::cl_type()),
+        ],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    ));
+    entry_points.add_entry_point(EntryPoint::new(
+        "mint_one",
+        vec![
+            Parameter::new("token_id", String::cl_type()),
+            Parameter::new("recipient", String::cl_type()),
         ],
         CLType::Unit,
         EntryPointAccess::Public,

@@ -8,14 +8,13 @@ use alloc::string::{String, ToString};
 use casper_contract::{contract_api::runtime, unwrap_or_revert::UnwrapOrRevert};
 use casper_erc20::{
     constants::{
-        ADDRESS_RUNTIME_ARG_NAME, AMOUNT_RUNTIME_ARG_NAME, CLAIM_VALUE_RUNTIME_ARG_NAME,
-        NONCE_RUNTIME_ARG_NAME, OWNER_RUNTIME_ARG_NAME, RECIPIENT_RUNTIME_ARG_NAME,
-        SIGNATURE_RUNTIME_ARG_NAME, SPENDER_RUNTIME_ARG_NAME, TOKEN_CONTRACT_RUNTIME_ARG_NAME,
+        ADDRESS_RUNTIME_ARG_NAME, AMOUNT_RUNTIME_ARG_NAME,
+        OWNER_RUNTIME_ARG_NAME, RECIPIENT_RUNTIME_ARG_NAME,
+        SPENDER_RUNTIME_ARG_NAME,
     },
     Address, ERC20,
 };
-use casper_types::{contracts::NamedKeys, CLValue, Key, U256};
-use verifier::Verifier as _Verifier;
+use casper_types::{CLValue, U256};
 
 #[derive(Default)]
 struct Verifier {}
@@ -90,37 +89,6 @@ pub extern "C" fn transfer_from() {
 }
 
 #[no_mangle]
-pub extern "C" fn claim() {
-    let amount: U256 = runtime::get_named_arg(CLAIM_VALUE_RUNTIME_ARG_NAME);
-    let nonce: u64 = runtime::get_named_arg(NONCE_RUNTIME_ARG_NAME);
-    let signature: String = runtime::get_named_arg(SIGNATURE_RUNTIME_ARG_NAME);
-
-    let (_, contract_hash) = casper_erc20::detail::current_contract();
-    let caller = casper_erc20::detail::get_immediate_caller_address().unwrap_or_revert();
-
-    Verifier::default()
-        .verify_token_and_nonce(signature, amount, nonce, contract_hash, caller.as_bytes())
-        .unwrap_or_revert();
-    ERC20::default().claim(amount, nonce).unwrap_or_revert();
-}
-
-#[no_mangle]
-pub extern "C" fn reclaim_token() {
-    let token_contract: Key = runtime::get_named_arg(TOKEN_CONTRACT_RUNTIME_ARG_NAME);
-    ERC20::default().reclaim_token(token_contract);
-}
-
-#[no_mangle]
-pub extern "C" fn pause() {
-    ERC20::default().pause();
-}
-
-#[no_mangle]
-pub extern "C" fn unpause() {
-    ERC20::default().unpause();
-}
-
-#[no_mangle]
 pub extern "C" fn mint() {
     let amount: U256 = runtime::get_named_arg(AMOUNT_RUNTIME_ARG_NAME);
     let address: Address = runtime::get_named_arg(OWNER_RUNTIME_ARG_NAME);
@@ -136,15 +104,17 @@ pub extern "C" fn burn() {
 
 #[no_mangle]
 fn call() {
-    let key: String = runtime::get_named_arg("key");
-    let mut named_keys = NamedKeys::new();
-    verifier::add_key(&mut named_keys, key);
+    // verifier::add_key(&mut named_keys, key);
+    let name: String = runtime::get_named_arg("name");
+    let symbol: String = runtime::get_named_arg("symbol");
+    let decimals: u8 = runtime::get_named_arg("decimals");
+    let total_supply: U256 = runtime::get_named_arg("total_supply");
+
     ERC20::install(
-        "test".to_string(),
-        "test".to_string(),
-        10,
-        U256::zero(),
-        named_keys,
+        name.to_string(),
+        symbol.to_string(),
+        decimals,
+        total_supply,
     )
     .unwrap_or_revert();
 }

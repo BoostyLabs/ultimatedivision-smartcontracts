@@ -16,5 +16,6 @@ cep47 = { path = "casper-nft-cep47/cep47" }
 verifier = { path = "../verifier", features = ["contract"] }
 
 [features]
-default = ["std"]
+default = ["std", "test-support"]
 std = ["casper-contract/std", "casper-types/std"]
+test-support=["casper-contract/test-support"]

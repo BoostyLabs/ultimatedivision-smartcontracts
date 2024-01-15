@@ -25,7 +25,7 @@ impl CEP47Instance {
     ) -> CEP47Instance {
         CEP47Instance(TestContract::new(
             env,
-            "cep47-token.wasm",
+            "ud-nft.wasm",
             contract_name,
             sender,
             runtime_args! {
@@ -65,7 +65,7 @@ impl CEP47Instance {
         )
     }
 
-    pub fn mint_copies<T: Into<Key>>(
+    pub fn mint_one<T: Into<Key>>(
         &self,
         sender: AccountHash,
         recipient: T,
@@ -75,7 +75,7 @@ impl CEP47Instance {
     ) {
         self.0.call_contract(
             sender,
-            "mint_copies",
+            "mint_one",
             runtime_args! {
                 "recipient" => recipient.into(),
                 "token_ids" => token_ids,
